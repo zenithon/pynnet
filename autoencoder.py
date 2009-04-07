@@ -1,12 +1,12 @@
-from simplenet import SimpleNet
-
-__all__ = ['Autoencoder', 'StackedAutoencoder']
-
 import numpy
 
 from base import *
+
+from simplenet import *
 from nlins import *
 from errors import *
+
+__all__ = ['Autoencoder']
 
 class Autoencoder(SimpleNet):
     def __init__(self, ninputs, noutputs, nlin=tanh, noisyness=0.0, corrupt_value=0.0, alpha=0.01, lmbd=0.0, dtype=numpy.float32):

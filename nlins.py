@@ -3,6 +3,9 @@ import numpy
 __all__ = ['tanh', 'sigmoid', 'none', 'Anynlin']
 
 class Nlin(object):
+    def __init__(self):
+        self.test()
+
     def __call__(self, x):
         raise NotImplementedError
     

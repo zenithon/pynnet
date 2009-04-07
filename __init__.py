@@ -1,4 +1,5 @@
-from simplenet import SimpleNet
-from autoencoder import Autoencoder
+from simplenet import *
+from autoencoder import *
 
-import nlins, errors
+import nlins
+import errors

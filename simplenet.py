@@ -5,6 +5,8 @@ from base import *
 from nlins import *
 from errors import *
 
+__all__ = ['SimpleNet']
+
 class SimpleNet(BaseObject):
     def __init__(self, ninputs, nhidden, noutputs, hnlin=tanh, onlin=none, error=mse, alpha=0.01, lmbd=0.0, dtype=numpy.float32):
         self.W1 = numpy.random.uniform(low=-1/numpy.sqrt(ninputs), high=1/numpy.sqrt(ninputs), size=(ninputs, nhidden)).astype(dtype)
