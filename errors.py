@@ -1,8 +1,12 @@
 import numpy
 
-__all__ = ['mse']
+__all__ = ['mse', 'nll']
 
 class Error(object):
+
+    def __init__(self):
+        self.test()
+
     def __call__(self, os, y):
         raise NotImplementedError
 
@@ -45,4 +49,13 @@ class Mse(Error):
 mse = Mse()
 
 class Nll(Error):
-    pass
+    def __call__(self, os, y):
+        return (-numpy.log(os[y.astype(numpy.bool)])).mean()
+
+    def _(self, os, y, C):
+        res = numpy.zeros(os.shape)
+        sel = y.astype(numpy.bool)
+        res[sel] = -1/(os[sel]*os.size)
+        return res
+
+nll = Nll()
