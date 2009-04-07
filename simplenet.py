@@ -40,6 +40,7 @@ class SimpleNet(BaseObject):
         self.hnlin, self.onlin, self.err, self.alpha, self.lmbd = pickle.load(file)
 
     def fprop(self, x):
+        x = numpy.atleast_2d(x)
         return self._fprop(x)
 
     def _fprop(self, x):
@@ -53,18 +54,23 @@ class SimpleNet(BaseObject):
         return ha, hs, oa, os
 
     def test(self, x, y):
+        x = numpy.atleast_2d(x)
+        y = numpy.atleast_2d(y)
         return self._test(x, y)
 
     def _test(self, x, y):
         return self.err(self._eval(x), y)
 
     def eval(self, x):
+        x = numpy.atleast_2d(x)
         return self._eval(x)
 
     def _eval(self, x):
         return self._fprop(x)[3]
 
     def grad(self, x, y):
+        x = numpy.atleast_2d(x)
+        y = numpy.atleast_2d(y)
         return self._grad(x, y)
 
     def _grad(self, x, y, vals=None):
@@ -118,11 +124,11 @@ class SimpleNet(BaseObject):
         return Ge
 
     def test_grad(self, x, y, verbose=True, eps=1e-4):
+        x = numpy.atleast_2d(x)
+        y = numpy.atleast_2d(y)
         return self._test_grad(self, x, y, verbose, eps)
 
     def _test_grad(self, x, y, verbose, eps):
-        x = numpy.atleast_2d(x)
-        y = numpy.atleast_2d(y)
         lmbd = self.lmbd
         self.lmbd = 0.0
         Gc = self._grad(x,y)
@@ -153,12 +159,11 @@ class SimpleNet(BaseObject):
             raise ValueError("Wrong gradients detected")
 
     def epoch_bprop(self, x, y):
+        x = numpy.atleast_2d(x)
+        y = numpy.atleast_2d(y)
         return self._epoch_bprop(x, y)
 
     def _epoch_bprop(self, x, y):
-        x = numpy.atleast_2d(x)
-        y = numpy.atleast_2d(y)
-
         G = self._grad(x, y)
 
         self.W1 -= self.alpha * G['W1']
@@ -167,11 +172,11 @@ class SimpleNet(BaseObject):
         self.b2 -= self.alpha * G['b2']
 
     def train_loop(self, x, y, epochs = 100):
+        x = numpy.atleast_2d(x)
+        y = numpy.atleast_2d(y)
         return self._train_loop(x, y, epochs)
 
     def _train_loop(self, x, y, epochs):
-        x = numpy.atleast_2d(x)
-        y = numpy.atleast_2d(y)
         for _ in xrange(epochs):
             self._epoch_bprop(x, y)
 
