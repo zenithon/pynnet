@@ -38,6 +38,9 @@ class SimpleNet(BaseObject):
         self.hnlin, self.onlin, self.err, self.alpha, self.lmbd = pickle.load(file)
 
     def fprop(self, x):
+        return self._fprop(x)
+
+    def _fprop(self, x):
         x = numpy.atleast_2d(x)
         
         ha = numpy.dot(x, self.W1) + self.b1
@@ -48,14 +51,23 @@ class SimpleNet(BaseObject):
         return ha, hs, oa, os
 
     def test(self, x, y):
-        return self.err(self.eval(x), y)
+        return self._test(x, y)
+
+    def _test(self, x, y):
+        return self.err(self._eval(x), y)
 
     def eval(self, x):
-        return self.fprop(x)[3]
+        return self._eval(x)
 
-    def grad(self, x, y, vals=None):
+    def _eval(self, x):
+        return self._fprop(x)[3]
+
+    def grad(self, x, y):
+        return self._grad(x, y)
+
+    def _grad(self, x, y, vals=None):
         if vals is None:
-            ha, hs, oa, os = self.fprop(x)
+            ha, hs, oa, os = self._fprop(x)
         else:
             ha, hs, oa, os = vals
             
@@ -73,41 +85,46 @@ class SimpleNet(BaseObject):
 
         return C
 
-    def estim_grad(self, x, y, eps = 1e-4):
+    def _estim_grad(self, x, y, eps):
         Ge = dict()
-        v = self.test(x, y)
+        v = self._test(x, y)
         
         Ge['b1'] = numpy.empty(self.b1.shape, self.b1.dtype)
         for i, w in numpy.ndenumerate(self.b1):
             self.b1[i] += eps
-            Ge['b1'][i] = (self.test(x,y) - v)/eps
+            Ge['b1'][i] = (self._test(x,y) - v)/eps
             self.b1[i] = w
 
         Ge['b2'] = numpy.empty(self.b2.shape, self.b2.dtype)
         for i, w in numpy.ndenumerate(self.b2):
             self.b2[i] += eps
-            Ge['b2'][i] = (self.test(x,y) - v)/eps
+            Ge['b2'][i] = (self._test(x,y) - v)/eps
             self.b2[i] = w
 
         Ge['W1'] = numpy.empty(self.W1.shape, self.W1.dtype)
         for i, w in numpy.ndenumerate(self.W1):
             self.W1[i] += eps
-            Ge['W1'][i] = (self.test(x,y) - v)/eps
+            Ge['W1'][i] = (self._test(x,y) - v)/eps
             self.W1[i] = w
 
         Ge['W2'] = numpy.empty(self.W2.shape, self.W2.dtype)
         for i, w in numpy.ndenumerate(self.W2):
             self.W2[i] += eps
-            Ge['W2'][i] = (self.test(x,y) - v)/eps
+            Ge['W2'][i] = (self._test(x,y) - v)/eps
             self.W2[i] = w
 
         return Ge
 
     def test_grad(self, x, y, verbose=True, eps=1e-4):
+        return self._test_grad(self, x, y, verbose, eps)
+
+    def _test_grad(self, x, y, verbose, eps):
+        x = numpy.atleast_2d(x)
+        y = numpy.atleast_2d(y)
         lmbd = self.lmbd
         self.lmbd = 0.0
-        Gc = self.grad(x,y)
-        Ge = self.estim_grad(x,y, eps=eps)
+        Gc = self._grad(x,y)
+        Ge = self._estim_grad(x, y, eps)
         self.lmbd = lmbd
         
         rb1 = Ge['b1']/Gc['b1']
@@ -134,7 +151,13 @@ class SimpleNet(BaseObject):
             raise ValueError("Wrong gradients detected")
 
     def epoch_bprop(self, x, y):
-        G = self.grad(x, y)
+        return self._epoch_bprop(x, y)
+
+    def _epoch_bprop(self, x, y):
+        x = numpy.atleast_2d(x)
+        y = numpy.atleast_2d(y)
+
+        G = self._grad(x, y)
 
         self.W1 -= self.alpha * G['W1']
         self.b1 -= self.alpha * G['b1']
@@ -142,6 +165,11 @@ class SimpleNet(BaseObject):
         self.b2 -= self.alpha * G['b2']
 
     def train_loop(self, x, y, epochs = 100):
+        return self._train_loop(x, y, epochs)
+
+    def _train_loop(self, x, y, epochs):
+        x = numpy.atleast_2d(x)
+        y = numpy.atleast_2d(y)
         for _ in xrange(epochs):
-            self.epoch_bprop(x, y)
+            self._epoch_bprop(x, y)
 
