@@ -26,12 +26,15 @@ class Autoencoder(SimpleNet):
             raise ValueError('Not a valid Autoencoder save file')
 
     def test(self, x):
+        x = numpy.atleast_2d(x)
         return self._test(x, x)
 
     def code(self, x):
+        x = numpy.atleast_2d(x)
         return self._fprop(x)[1]
 
     def epoch_bprop(self, x):
+        x = numpy.atleast_2d(x)
         return self._epoch_bprop(x, x)
 
     def _epoch_bprop(self, x, y):
@@ -40,6 +43,7 @@ class Autoencoder(SimpleNet):
         SimpleNet._epoch_bprop(self, x, y)
 
     def train_loop(self, x, epochs=100):
+        x = numpy.atleast_2d(x)
         return self._train_loop(x, x, epochs)
 
 
