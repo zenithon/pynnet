@@ -8,6 +8,14 @@ from errors import *
 __all__ = ['SimpleNet']
 
 class SimpleNet(BaseObject):
+    r"""
+    Simple 3-layers neural network to experiment with new algorithms or implementations.
+    
+    It is also a tiny bit faster than NNet at computing gradients (and thus training).
+
+    WARNING: Not all functionality of this class is guaranteed to always work.  You should do some sanity checks before trusting results.
+    """
+    
     def __init__(self, ninputs, nhidden, noutputs, hnlin=tanh, onlin=none, error=mse, alpha=0.01, lmbd=0.0, dtype=numpy.float32):
         self.W1 = numpy.random.uniform(low=-1/numpy.sqrt(ninputs), high=1/numpy.sqrt(ninputs), size=(ninputs, nhidden)).astype(dtype)
         self.W2 = numpy.random.uniform(low=-1/numpy.sqrt(ninputs), high=1/numpy.sqrt(ninputs), size=(nhidden, noutputs)).astype(dtype)
@@ -32,7 +40,6 @@ class SimpleNet(BaseObject):
         s = file.read(3)
         if s != 'SN1':
             raise ValueError('Wrong fromat for SimpleNet in file')
-        print file.tell()
         self.W1 = numpy.load(file)
         self.b1 = numpy.load(file)
         self.W2 = numpy.load(file)
@@ -126,7 +133,7 @@ class SimpleNet(BaseObject):
     def test_grad(self, x, y, verbose=True, eps=1e-4):
         x = numpy.atleast_2d(x)
         y = numpy.atleast_2d(y)
-        return self._test_grad(self, x, y, verbose, eps)
+        return self._test_grad(x, y, verbose, eps)
 
     def _test_grad(self, x, y, verbose, eps):
         lmbd = self.lmbd
@@ -170,6 +177,63 @@ class SimpleNet(BaseObject):
         self.b1 -= self.alpha * G['b1']
         self.W2 -= self.alpha * G['W2']
         self.b2 -= self.alpha * G['b2']
+
+    def _epoch_steep(self, x, y):
+        G = self._grad(x, y)
+
+        self.dW1 = -G['W1']
+        self.db1 = -G['b1']
+        self.dW2 = -G['W2']
+        self.db2 = -G['b2']
+
+        self._linesearch(self, y, x)
+
+    def _linesearch(self, x, y, grad, maxloops=None):
+        best_err = self._test(x, y)
+        cur_err = 0
+        alpha = 0
+        if maxloops is None:
+            maxloops = int(1/self.alpha)
+
+        W1 = self.W1.copy()
+        b1 = self.b1.copy()
+        W2 = self.W2.copy()
+        b2 = self.b2.copy()
+
+        for i in xrange(maxloops):
+            alpha = i * self.alpha
+            self.W1 = W1 + alpha * self.dW1
+            self.b1 = b1 + alpha * self.db1
+            self.W2 = W2 + alpha * self.dW2
+            self.b2 = b2 + alpha * self.db2
+            cur_err = self._test(x, y)
+            if cur_err < best_err:
+                best_err = cur_err
+            else:
+                alpha = (i-1)*self.alpha
+                break        
+
+        self.W1 = W1 + alpha * self.dW1
+        self.b1 = b1 + alpha * self.db1
+        self.W2 = W2 + alpha * self.dW2
+        self.b2 = b2 + alpha * self.db2
+
+        def _epoch_conj(self, x, y, beta_method='PR'):
+            if not hasattr(self, 'gW1'):
+                self._epoch_steep(x, y)
+                return
+            
+            G = self._grad(x, y)
+            
+            if beta_method == 'FR':
+                beta = 0
+            elif beta_method == 'PR':
+                beta = 1
+            elif beta_method == 'HS':
+                beta = 2
+            else:
+                raise ValueError('Unknown beta method: %s'%(beta_method,))
+            ## FIXME: needs to be completed
 
     def train_loop(self, x, y, epochs = 100):
         x = numpy.atleast_2d(x)
