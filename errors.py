@@ -3,6 +3,9 @@ import numpy
 __all__ = ['mse', 'nll']
 
 class Error(object):
+    def __repr__(self):
+        return self.name
+
     def __call__(self, os, y):
         raise NotImplementedError
 
@@ -36,6 +39,8 @@ class Error(object):
             raise ValueError('Gradient is not within norms')
 
 class Mse(Error):
+    name = "mse"
+
     def __call__(self, os, y):
         return ((os-y)**2).mean()
 
@@ -45,6 +50,8 @@ class Mse(Error):
 mse = Mse()
 
 class Nll(Error):
+    name = "nll"
+
     def __call__(self, os, y):
         return (-numpy.log(os[y.astype(numpy.bool)])).mean()
 

@@ -3,6 +3,9 @@ import numpy
 __all__ = ['tanh', 'sigmoid', 'none', 'Anynlin']
 
 class Nlin(object):
+    def __repr__(self):
+        return self.name
+
     def __call__(self, x):
         raise NotImplementedError
     
@@ -28,8 +31,7 @@ class Nlin(object):
             raise ValueError('Gradient is not within norms')
 
 class Tanh(Nlin):
-    def __repr__(self):
-        return "tanh"
+    name = "tanh"
     
     def __call__(self, x):
         return numpy.tanh(x)
@@ -40,6 +42,8 @@ class Tanh(Nlin):
 tanh = Tanh()
 
 class Sigmoid(Nlin):
+    name = "sigmoid"
+
     def __call__(self, x):
         return 1/(1+numpy.e**(-x))
 
@@ -49,6 +53,8 @@ class Sigmoid(Nlin):
 sigmoid = Sigmoid()
 
 class Lin(Nlin):
+    name = "none"
+
     def __call__(self, x):
         return x
 
@@ -58,6 +64,8 @@ class Lin(Nlin):
 none = Lin()
 
 class Softmax(Nlin):
+    name = "softmax"
+
     def __call__(self, x):
         v = numpy.exp(x - x.mean())
         return v / numpy.sum(v, axis=1).repeat(x.shape[1]).reshape(x.shape)
@@ -71,6 +79,9 @@ class Anynlin(Nlin):
         Nlin.__init__(self)
         self.func = func
         self.eps = eps
+
+    def __repr__(self):
+        return repr(self.func)
 
     def __call__(self, x):
         return self.func(x)
