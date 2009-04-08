@@ -3,10 +3,6 @@ import numpy
 __all__ = ['mse', 'nll']
 
 class Error(object):
-
-    def __init__(self):
-        self.test()
-
     def __call__(self, os, y):
         raise NotImplementedError
 
