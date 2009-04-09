@@ -14,6 +14,18 @@ class SimpleNet(BaseObject):
     It is also a tiny bit faster than NNet at computing gradients (and thus training).
 
     WARNING: Not all functionality of this class is guaranteed to always work.  You should do some sanity checks before trusting results.
+    
+    Simplenet( ninputs, nhidden, noutputs, hnlin=tanh, onlin=none, error=mse, alpha=0.01, lmbd=0.0, dtype=numpy.float32 )
+    
+    ninputs : Dimension of input
+    nhidden : Dimension of hidden layer
+    noutput : Dimension of output
+    hnlin : hidden transfer function
+    onlin : output transfer function
+    error : Cost function to optimize
+    alpha : learning rate ?
+    lambd : regularisation term ?
+    dtype : type of inputs/outputs ?
     """
     
     def __init__(self, ninputs, nhidden, noutputs, hnlin=tanh, onlin=none, error=mse, alpha=0.01, lmbd=0.0, dtype=numpy.float32):
@@ -61,6 +73,11 @@ class SimpleNet(BaseObject):
         return ha, hs, oa, os
 
     def test(self, x, y):
+	"""
+	test(self, x, y)
+	x=inputs
+	y=targets
+	"""
         x = numpy.atleast_2d(x)
         y = numpy.atleast_2d(y)
         return self._test(x, y)
@@ -236,6 +253,11 @@ class SimpleNet(BaseObject):
             ## FIXME: needs to be completed
 
     def train_loop(self, x, y, epochs = 100):
+	"""
+	train_loop( x, y, epochs = 100)
+	x = inputs
+	y = targets
+	"""
         x = numpy.atleast_2d(x)
         y = numpy.atleast_2d(y)
         return self._train_loop(x, y, epochs)
