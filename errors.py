@@ -1,6 +1,6 @@
 import numpy
 
-__all__ = ['mse', 'nll']
+__all__ = ['mse', 'nll','class_error']
 
 class Error(object):
     def __repr__(self):
@@ -62,3 +62,11 @@ class Nll(Error):
         return res
 
 nll = Nll()
+
+class Class_error(Error):
+	name="class_error"
+	
+	def __call__(self,os,y):
+		return numpy.abs((numpy.round(os)-y)).mean()
+		
+class_error = Class_error()

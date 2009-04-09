@@ -1,5 +1,6 @@
 from nlins import *
 from simplenet import *
+from errors import *
 import numpy as N
 import copy
 import time
@@ -16,7 +17,7 @@ def doEpoch(nnet,step):
     nnet.train_loop(inputs,targets,epochs=step)
     
 def initNNet():
-    nnet=SimpleNet(NINPUT,NHIDDEN,NOUTPUT,onlin=sigmoid)
+    nnet=SimpleNet(NINPUT,NHIDDEN,NOUTPUT,error=mse,onlin=sigmoid)
     return nnet
 
 def earlyStopping(nnet,train,valid,thresh=10):
@@ -31,11 +32,16 @@ def earlyStopping(nnet,train,valid,thresh=10):
         stage+=STEP
         #trainError=getError(nnet,train)
         #currError=getError(nnet,valid)
-        trainError=nnet.test(*splitMat(train,2))
-        currError=nnet.test(*splitMat(valid,2))
-        history.append([trainError,currError])
+	trainIn,trainTar=splitMat(train,2)
+	validIn,validTar=splitMat(valid,2)
+        trainError=nnet.test(trainIn,trainTar)
+        currError=nnet.test(validIn,validTar)
+	trainCError=class_error(nnet.eval(trainIn),trainTar)
+	validCError=class_error(nnet.eval(validIn),validTar)
+        history.append([trainError,currError,trainCError,validCError])
         print '%iN\n%iE'%(NHIDDEN,stage)
         print 'Train Error : %f\nValid Error : %f'%(trainError, currError)
+	print 'Train Class Error : %f\nValid Class Error : %f'%(trainCError, validCError)
         if currError<bestError:
             count=0
             bestError=currError
