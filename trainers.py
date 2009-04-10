@@ -35,7 +35,7 @@ class bprop(Trainer):
         self.lmbd = lmbd
     
     def epoch(self, nnet):
-        GWs, Gbs = nnet.grad(self.x, self.y, lmbd=self.lmbd)
+        GWs, Gbs = nnet._grad(self.x, self.y, lmbd=self.lmbd)
         nnet._apply_dir(GWs, Gbs, -self.alpha)
 
 class steepest(Trainer):
@@ -45,7 +45,7 @@ class steepest(Trainer):
         self.lmbd = lmbd
     
     def epoch(self, nnet):
-        GWs, Gbs = nnet.grad(self.x, self.y, lmbd=self.lmbd)
+        GWs, Gbs = nnet._grad(self.x, self.y, lmbd=self.lmbd)
         
         self.dWs = [-GW for GW in GWs]
         self.dbs = [-Gb for Gb in Gbs]
