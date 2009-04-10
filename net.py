@@ -23,6 +23,15 @@ class NNet(BaseObject):
             self.nlins = (nlins,)*(len(layers)-1)
         self.err = error
 
+    @classmethod
+    def virtual(cls, layers, nlins, error):
+        net = cls.__new__()
+        net._virtual = True
+        net.layers = layers
+        net.nlins = nlins
+        net.err = error
+        return net
+
     def _save_(self, file):
         file.write('NN1')
         pickle.dump(len(self.layers), file)

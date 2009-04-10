@@ -14,6 +14,9 @@ class BaseObject(object):
         file.write("SOSV1")
 
     def save(self, fname):
+        if hasattr(self, '_vitual'):
+            raise ValueError('Cannot save virtual object.  Save the parent instead.')
+        
         with open(fname, 'wb') as f:
             for C in reversed(type(self).__mro__):
                 try:
