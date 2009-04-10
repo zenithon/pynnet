@@ -9,7 +9,7 @@ class NNet(BaseObject):
     def __init__(self, layers, nlins=(tanh, none), error=mse, dtype=numpy.float32):
         
         lim = 1/numpy.sqrt(layers[0])
-        makelayer = lambda i, o: (numpy.random.uniform(low=-lim, high=lim, size=(i, o)).astype(dtype), numpy.zeros(o, dtype=dtype))
+        makelayer = lambda i, o: layer(numpy.random.uniform(low=-lim, high=lim, size=(i, o)).astype(dtype), numpy.zeros(o, dtype=dtype))
         self.layers = [makelayer(i, o) for i, o in zip(layers, layers[1:])]
         if isinstance(nlins, (tuple, list)):
             if len(nlins) == len(layers) - 1:
@@ -63,10 +63,10 @@ class NNet(BaseObject):
         outs = [None] * (len(self.nlins))
         outs[-1] = x
         for i in xrange(len(self.layers)):
-            acts[i] = numpy.dot(outs[i-1], self.layers[i][0]) + self.layers[i][1]
+            acts[i] = numpy.dot(outs[i-1], self.layers[i].W) + self.layers[i].b
             outs[i] = self.nlins[i](acts[i])
 
-        return acts, outs
+        return propres(acts, outs)
 
     def test(self, x, y):
         x = numpy.atleast_2d(x)
@@ -81,7 +81,7 @@ class NNet(BaseObject):
         return self._eval(x)
 
     def _eval(self, x):
-        return self._fprop(x)[1][-1]
+        return self._fprop(x).outs[-1]
 
     def grad(self, x, y, lmbd):
         x = numpy.atleast_2d(x)
@@ -98,17 +98,17 @@ class NNet(BaseObject):
         Gacts[-1] = Gouts[-1] * self.nlins[-1]._(acts[-1], outs[-1])
         
         for i in xrange(-2, -len(outs) - 1, -1):
-            Gouts[i] = numpy.dot(self.layers[i+1][0], Gacts[i+1].T).T
+            Gouts[i] = numpy.dot(self.layers[i+1].W, Gacts[i+1].T).T
             Gacts[i] = Gouts[i] * self.nlins[i]._(acts[i], outs[i])
         
         GWs = [None] * len(self.layers)
         Gbs = [None] * len(self.layers)
         
         for i in xrange(-1,-len(self.layers), -1):
-            GWs[i] = numpy.dot(outs[i-1].T, Gacts[i]) + 2.0 * lmbd * self.layers[i][0]
+            GWs[i] = numpy.dot(outs[i-1].T, Gacts[i]) + 2.0 * lmbd * self.layers[i].W
             Gbs[i] = Gacts[i].sum(axis=0)
 
-        GWs[0] = numpy.dot(x.T, Gacts[0]) + 2.0 * lmbd * self.layers[0][0]
+        GWs[0] = numpy.dot(x.T, Gacts[0]) + 2.0 * lmbd * self.layers[0].W
         Gbs[0] = Gacts[0].sum(axis=0)
 
         return GWs, Gbs#, Gacts, Gouts
@@ -116,12 +116,10 @@ class NNet(BaseObject):
     def _estim_grad(self, x, y, eps):
         v = self._test(x, y)
 
-        GWs = [numpy.empty(l[0].shape, l[0].dtype) for l in self.layers]
-        Gbs = [numpy.empty(l[1].shape, l[1].dtype) for l in self.layers]
+        GWs = [numpy.empty(l.W.shape, l.W.dtype) for l in self.layers]
+        Gbs = [numpy.empty(l.b.shape, l.b.dtype) for l in self.layers]
         
-        for l, GW, Gb in zip(self.layers, GWs, Gbs):
-            W = l[0]
-            b = l[1]
+        for (W, b), GW, Gb in zip(self.layers, GWs, Gbs):
 
             for i, w in numpy.ndenumerate(W):
                 W[i] += eps
