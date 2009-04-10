@@ -3,6 +3,13 @@ from base import *
 __all__ = ['bprop']
 
 class Trainer(BaseObject):
+    def __init__(self, x, y):
+        self.x = numpy.atleast_2d(x)
+        self.y = numpy.atleast_2d(y)
+
+    def _save_(self, file):
+        raise NotImplementedError
+
     def reset(self):
         r"""
         Resets the internal state of the trainer to zero.
@@ -23,13 +30,9 @@ class Trainer(BaseObject):
 
 class bprop(Trainer):
     def __init__(self, x, y, alpha=0.01, lmbd=0.0):
-        self.x = numpy.atleast_2d(x)
-        self.y = numpy.atleast_2d(y)
+        Trainer.__init__(self, x, y)
         self.alpha = alpha
         self.lmbd = lmbd
-    
-    def _save_(self, file):
-        raise NotImplementedError
     
     def epoch(self, nnet):
         GWs, Gbs = nnet.grad(self.x, self.y, lmbd=self.lmbd)
@@ -37,8 +40,7 @@ class bprop(Trainer):
 
 class steepest(Trainer):
     def __init__(self, x, y, alpha=0.01, lmbd=0.0):
-        self.x = numpy.atleast_2d(x)
-        self.y = numpy.atleast_2d(y)
+        Trainer.__init__(self, x,y)
         self.alpha = alpha
         self.lmbd = lmbd
     
