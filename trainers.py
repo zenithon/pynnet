@@ -1,6 +1,6 @@
 from base import *
 
-__all__ = ['bprop']
+__all__ = ['bprop', 'steepest', 'conj']
 
 class Trainer(BaseObject):
     def __init__(self, x, y):
@@ -38,56 +38,78 @@ class bprop(Trainer):
         GWs, Gbs = nnet._grad(self.x, self.y, lmbd=self.lmbd)
         nnet._apply_dir(GWs, Gbs, -self.alpha)
 
+def _linesearch(nnet, x, y, GWs, Gbs, step):
+        r"""
+        Cheap line search.  Could be improved.
+        """
+        best_err = nnet._test(x, y)
+        cur_err = 0
+        alpha = 0
+        maxtries = int(1/step)
+
+        for i in xrange(1, maxtries):
+            nnet._apply_dir(GWs, Gbs, -step)
+            cur_err = nnet._test(x, y)
+            if cur_err < best_err:
+                best_err = cur_err
+            else:
+                nnet._apply_dir(GWs, Gbs, step)
+                break
+
 class steepest(Trainer):
-    def __init__(self, x, y, alpha=0.01, lmbd=0.0):
+    def __init__(self, x, y, step=0.01, lmbd=0.0):
         Trainer.__init__(self, x,y)
-        self.alpha = alpha
+        self.step = step
         self.lmbd = lmbd
     
     def epoch(self, nnet):
         GWs, Gbs = nnet._grad(self.x, self.y, lmbd=self.lmbd)
-        
-        self.dWs = [-GW for GW in GWs]
-        self.dbs = [-Gb for Gb in Gbs]
-        
-        self._linesearch(nnet)
-    
-    def _linesearch(self, nnet):
-        r"""
-        Cheap line search.  Could be improved.
-        """
-        best_err = nnet._test(self.x, self.y)
-        cur_err = 0
-        alpha = 0
-        maxloops = int(1/self.alpha)
+        _linesearch(nnet, self.x, self.y, GWs, Gbs, self.step)
 
-        layers = [(l[0].copy(), l[1].copy()) for l in nnet.layers]
+def beta_FR(GWs, Gbs, oGWs, oGbs, dWs, dbs):
+    return sum((GW**2).sum()+(Gb**2).sum() for GW, Gb in zip(GWs, Gbs)) / \
+        sum((oGW**2).sum()+(oGb**2).sum() for oGW, oGb in zip(oGWs, oGbs))
 
-        for i in xrange(1, maxloops):
-            alpha = i * self.alpha
-            print "iter:", i
-            print alpha
-            print nnet.W1
-            for (W, b), (oW, ob), dW, db in zip(nnet.layers, layers, self.dWs, self.dbs):
-                print dW
-                W = oW + alpha * dW
-                b = ob + alpha * db
-            print nnet.W1
-            cur_err = nnet._test(self.x, self.y)
-            print best_err, cur_err
-            if cur_err < best_err:
-                best_err = cur_err
-            else:
-                alpha = (i-1)*self.alpha
-                break
+def beta_PR(GWs, Gbs, oGWs, oGbs, dWs, dbs):
+    return sum((GW*(GW-oGW)).sum()+(Gb*(Gb-oGb)).sum() for GW, Gb, oGW, oGb in zip(GWs, Gbs, oGWs, oGbs)) / \
+        sum((oGW**2).sum()+(oGb**2).sum() for oGW, oGb in zip(oGWs, oGbs))
 
-        print alpha
-
-        for l, ol, dW, db in zip(nnet.layers, layers, self.dWs, self.dbs):
-            W, b = l
-            oW, ob = ol
-            W = oW + alpha * dW
-            b = ob + alpha * db
+def beta_HS(GWs, Gbs, oGWs, oGbs, dWs, dbs):
+    return sum((GW*(GW-oGW)).sum()+(Gb*(Gb-oGb)).sum() for GW, Gb, oGW, oGb in zip(GWs, Gbs, oGWs, oGbs)) / \
+        sum((dW*(GW-oGW)).sum()+(db*(Gb-oGb)).sum() for GW, Gb, oGW, oGb, dW, db in zip(GWs, Gbs, oGWs, oGbs, dWs, dbs))
 
 class conj(Trainer):
-    pass
+    def __init__(self, x, y, step=0.01, lmbd=0.0, beta_method='PR'):
+        Trainer.__init__(self, x, y)
+        self.step = step
+        self.lmbd = lmbd
+        if beta_method == 'FR':
+            self.beta = beta_FR
+        elif beta_method == 'PR':
+            self.beta = beta_PR
+        elif beta_method == 'HS':
+            self.beta = beta_HS
+        else:
+            raise ValueError('Unknown beta method "%s"'%(beta_method,))
+
+    def reset(self):
+        del self.dWs
+        del self.dbs
+        del self.GWs
+        del self.Gbs
+
+    def epoch(self, nnet):
+        GWs, Gbs = nnet._grad(self.x, self.y, lmbd=self.lmbd)
+        try:
+            beta = max(self.beta(GWs, Gbs, self.GWs, self.Gbs, self.dWs, self.dbs), 0)
+            dWs = [GW + beta*dW for GW, dW in zip(GWs, self.dWs)]
+            dbs = [Gb + beta*db for Gb, db in zip(Gbs, self.dbs)]
+            self.GWs = GWs
+            self.Gbs = Gbs
+            self.dWs = dWs
+            self.dbs = dbs
+        except AttributeError:
+            self.dWs = self.GWs = GWs
+            self.dbs = self.Gbs = Gbs
+        
+        _linesearch(nnet, self.x, self.y, self.dWs, self.dbs, self.step)
