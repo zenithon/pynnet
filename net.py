@@ -25,7 +25,7 @@ class NNet(BaseObject):
 
     @classmethod
     def virtual(cls, layers, nlins, error):
-        net = cls.__new__()
+        net = NNet.__new__(cls)
         net._virtual = True
         net.layers = layers
         net.nlins = nlins
