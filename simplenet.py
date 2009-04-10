@@ -1,5 +1,3 @@
-import numpy
-
 from base import *
 
 from nlins import *
@@ -23,12 +21,12 @@ class SimpleNet(BaseObject):
     hnlin : hidden transfer function
     onlin : output transfer function
     error : Cost function to optimize
-    alpha : learning rate ?
-    lambd : regularisation term ?
-    dtype : type of inputs/outputs ?
+    alpha : learning rate
+    lmbd  : regularisation term
+    dtype : data type of coefficients
     """
     
-    def __init__(self, ninputs, nhidden, noutputs, hnlin=tanh, onlin=none, error=mse, alpha=0.01, lmbd=0.0, dtype=numpy.float32):
+    def __init__(self, ninputs, nhidden, noutputs, hnlin=tanh, onlin=none, error=mse, dtype=numpy.float32):
         self.W1 = numpy.random.uniform(low=-1/numpy.sqrt(ninputs), high=1/numpy.sqrt(ninputs), size=(ninputs, nhidden)).astype(dtype)
         self.W2 = numpy.random.uniform(low=-1/numpy.sqrt(ninputs), high=1/numpy.sqrt(ninputs), size=(nhidden, noutputs)).astype(dtype)
         self.b1 = numpy.zeros(nhidden, dtype=dtype)
@@ -36,8 +34,6 @@ class SimpleNet(BaseObject):
         self.hnlin = hnlin
         self.onlin = onlin
         self.err = error
-        self.alpha = alpha
-        self.lmbd = lmbd
 
     def _save_(self, file):
         file.write('SN1')
@@ -45,10 +41,9 @@ class SimpleNet(BaseObject):
         numpy.save(file, self.b1)
         numpy.save(file, self.W2)
         numpy.save(file, self.b2)
-        pickle.dump((self.hnlin, self.onlin, self.err, self.alpha, self.lmbd), file)
+        pickle.dump((self.hnlin, self.onlin, self.err), file)
         
     def _load_(self, file):
-        
         s = file.read(3)
         if s != 'SN1':
             raise ValueError('Wrong fromat for SimpleNet in file')
@@ -56,7 +51,7 @@ class SimpleNet(BaseObject):
         self.b1 = numpy.load(file)
         self.W2 = numpy.load(file)
         self.b2 = numpy.load(file)
-        self.hnlin, self.onlin, self.err, self.alpha, self.lmbd = pickle.load(file)
+        self.hnlin, self.onlin, self.err = pickle.load(file)
 
     def fprop(self, x):
         x = numpy.atleast_2d(x)
@@ -92,16 +87,13 @@ class SimpleNet(BaseObject):
     def _eval(self, x):
         return self._fprop(x)[3]
 
-    def grad(self, x, y):
+    def grad(self, x, y, lmbd):
         x = numpy.atleast_2d(x)
         y = numpy.atleast_2d(y)
-        return self._grad(x, y)
+        return self._grad(x, y, lmbd)
 
-    def _grad(self, x, y, vals=None):
-        if vals is None:
-            ha, hs, oa, os = self._fprop(x)
-        else:
-            ha, hs, oa, os = vals
+    def _grad(self, x, y, lmbd):
+        ha, hs, oa, os = self._fprop(x)
             
         C = dict()
         
@@ -110,12 +102,12 @@ class SimpleNet(BaseObject):
         C['hs'] = numpy.dot(self.W2, C['oa'].T).T
         C['ha'] = C['hs'] * self.hnlin._(ha, hs)
         
-        C['W2'] = numpy.dot(hs.T, C['oa']) + 2.0 * self.lmbd * self.W2
+        C['W2'] = numpy.dot(hs.T, C['oa']) + 2.0 * lmbd * self.W2
         C['b2'] = C['oa'].sum(axis=0)
-        C['W1'] = numpy.dot(x.T, C['ha']) + 2.0 * self.lmbd * self.W1
+        C['W1'] = numpy.dot(x.T, C['ha']) + 2.0 * lmbd * self.W1
         C['b1'] = C['ha'].reshape((x.shape[0], -1), order='F').sum(axis=0)
 
-        return C
+        return [C['W1'], C['W2']], [C['b1'], C['b2']]
 
     def _estim_grad(self, x, y, eps):
         Ge = dict()
@@ -145,7 +137,7 @@ class SimpleNet(BaseObject):
             Ge['W2'][i] = (self._test(x,y) - v)/eps
             self.W2[i] = w
 
-        return Ge
+        return [Ge['W1'], Ge['W2']], [Ge['b1'], Ge['b2']]
 
     def test_grad(self, x, y, verbose=True, eps=1e-4):
         x = numpy.atleast_2d(x)
@@ -153,16 +145,13 @@ class SimpleNet(BaseObject):
         return self._test_grad(x, y, verbose, eps)
 
     def _test_grad(self, x, y, verbose, eps):
-        lmbd = self.lmbd
-        self.lmbd = 0.0
-        Gc = self._grad(x,y)
-        Ge = self._estim_grad(x, y, eps)
-        self.lmbd = lmbd
-        
-        rb1 = Ge['b1']/Gc['b1']
-        rb2 = Ge['b2']/Gc['b2']
-        rW1 = Ge['W1']/Gc['W1']
-        rW2 = Ge['W2']/Gc['W2']
+        GcW, Gcb = self._grad(x,y, lmbd=0.0)
+        GeW, Geb = self._estim_grad(x, y, eps)
+
+        rb1 = Geb[0]/Gcb[0]
+        rb2 = Geb[1]/Gcb[1]
+        rW1 = GeW[0]/GcW[0]
+        rW2 = GeW[1]/GcW[1]
 
         if verbose:
             print "b1"
@@ -182,87 +171,22 @@ class SimpleNet(BaseObject):
         else:
             raise ValueError("Wrong gradients detected")
 
-    def epoch_bprop(self, x, y):
-        x = numpy.atleast_2d(x)
-        y = numpy.atleast_2d(y)
-        return self._epoch_bprop(x, y)
+    def _apply_dir(self, GWs, Gbs, alpha=1.0):
+        self.W1 += alpha*GWs[0]
+        self.b1 += alpha*Gbs[0]
+        self.W2 += alpha*GWs[1]
+        self.b2 += alpha*Gbs[1]
 
-    def _epoch_bprop(self, x, y):
-        G = self._grad(x, y)
-
-        self.W1 -= self.alpha * G['W1']
-        self.b1 -= self.alpha * G['b1']
-        self.W2 -= self.alpha * G['W2']
-        self.b2 -= self.alpha * G['b2']
-
-    def _epoch_steep(self, x, y):
-        G = self._grad(x, y)
-
-        self.dW1 = -G['W1']
-        self.db1 = -G['b1']
-        self.dW2 = -G['W2']
-        self.db2 = -G['b2']
-
-        self._linesearch(self, y, x)
-
-    def _linesearch(self, x, y, grad, maxloops=None):
-        best_err = self._test(x, y)
-        cur_err = 0
-        alpha = 0
-        if maxloops is None:
-            maxloops = int(1/self.alpha)
-
-        W1 = self.W1.copy()
-        b1 = self.b1.copy()
-        W2 = self.W2.copy()
-        b2 = self.b2.copy()
-
-        for i in xrange(maxloops):
-            alpha = i * self.alpha
-            self.W1 = W1 + alpha * self.dW1
-            self.b1 = b1 + alpha * self.db1
-            self.W2 = W2 + alpha * self.dW2
-            self.b2 = b2 + alpha * self.db2
-            cur_err = self._test(x, y)
-            if cur_err < best_err:
-                best_err = cur_err
-            else:
-                alpha = (i-1)*self.alpha
-                break        
-
-        self.W1 = W1 + alpha * self.dW1
-        self.b1 = b1 + alpha * self.db1
-        self.W2 = W2 + alpha * self.dW2
-        self.b2 = b2 + alpha * self.db2
-
-        def _epoch_conj(self, x, y, beta_method='PR'):
-            if not hasattr(self, 'gW1'):
-                self._epoch_steep(x, y)
-                return
-            
-            G = self._grad(x, y)
-            
-            if beta_method == 'FR':
-                beta = 0
-            elif beta_method == 'PR':
-                beta = 1
-            elif beta_method == 'HS':
-                beta = 2
-            else:
-                raise ValueError('Unknown beta method: %s'%(beta_method,))
-            ## FIXME: needs to be completed
-
-    def train_loop(self, x, y, epochs = 100):
+    def train_loop(self, trainer, epochs = 100):
 	"""
-	train_loop( x, y, epochs = 100)
-	x = inputs
-	y = targets
-	"""
-        x = numpy.atleast_2d(x)
-        y = numpy.atleast_2d(y)
-        return self._train_loop(x, y, epochs)
+	train_loop(trainer, epochs = 100)
 
-    def _train_loop(self, x, y, epochs):
+        trainer: a instance of the Trainer class, describing a training method for the network.
+	"""
+        return self._train_loop(trainer, epochs)
+
+    def _train_loop(self, trainer, epochs):
         for _ in xrange(epochs):
-            self._epoch_bprop(x, y)
+            trainer.epoch(self)
 
+    layers = property(lambda self: [(self.W1, self.b1), (self.W2, self.b2)])

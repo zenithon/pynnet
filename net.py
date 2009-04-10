@@ -1,5 +1,3 @@
-import numpy
-
 from base import *
 
 from nlins import *
@@ -8,7 +6,7 @@ from errors import *
 __all__ = ['NNet']
 
 class NNet(BaseObject):
-    def __init__(self, layers, nlins=(tanh, none), error=mse, alpha=0.01, lmbd=0.0, dtype=numpy.float32):
+    def __init__(self, layers, nlins=(tanh, none), error=mse, dtype=numpy.float32):
         
         lim = 1/numpy.sqrt(layers[0])
         makelayer = lambda i, o: (numpy.random.uniform(low=-lim, high=lim, size=(i, o)).astype(dtype), numpy.zeros(o, dtype=dtype))
@@ -24,8 +22,6 @@ class NNet(BaseObject):
         else:
             self.nlins = (nlins,)*(len(layers)-1)
         self.err = error
-        self.alpha = alpha
-        self.lmbd = lmbd
 
     def _save_(self, file):
         file.write('NN1')
@@ -78,16 +74,13 @@ class NNet(BaseObject):
     def _eval(self, x):
         return self._fprop(x)[1][-1]
 
-    def grad(self, x, y):
+    def grad(self, x, y, lmbd):
         x = numpy.atleast_2d(x)
         y = numpy.atleast_2d(y)
-        return self._grad(x, y)
+        return self._grad(x, y, lmbd)
 
-    def _grad(self, x, y, vals=None):
-        if vals is None:
-            acts, outs = self._fprop(x)
-        else:
-            acts, outs = vals
+    def _grad(self, x, y, lmbd):
+        acts, outs = self._fprop(x)
         
         Gouts = [None] * len(outs)
         Gacts = [None] * len(acts)
@@ -103,18 +96,13 @@ class NNet(BaseObject):
         Gbs = [None] * len(self.layers)
         
         for i in xrange(-1,-len(self.layers), -1):
-            GWs[i] = numpy.dot(outs[i-1].T, Gacts[i]) + 2.0 * self.lmbd * self.layers[i][0]
+            GWs[i] = numpy.dot(outs[i-1].T, Gacts[i]) + 2.0 * lmbd * self.layers[i][0]
             Gbs[i] = Gacts[i].sum(axis=0)
 
-        GWs[0] = numpy.dot(x.T, Gacts[0]) + 2.0 * self.lmbd * self.layers[0][0]
+        GWs[0] = numpy.dot(x.T, Gacts[0]) + 2.0 * lmbd * self.layers[0][0]
         Gbs[0] = Gacts[0].sum(axis=0)
 
-        return Gacts, Gouts, GWs, Gbs
-    
-#        G['W2'] = numpy.dot(hs.T, G['oa']) + 2.0 * self.lmbd * self.W2
-#        G['b2'] = G['oa'].sum(axis=0)
-#        G['W1'] = numpy.dot(x.T, G['ha']) + 2.0 * self.lmbd * self.W1
-#        G['b1'] = G['ha'].reshape((x.shape[0], -1), order='F').sum(axis=0)
+        return GWs, Gbs#, Gacts, Gouts
     
     def _estim_grad(self, x, y, eps):
         v = self._test(x, y)
@@ -144,9 +132,9 @@ class NNet(BaseObject):
         return self._test_grad(x, y, verbose, eps)
 
     def _test_grad(self, x, y, verbose, eps):
-        lmbd = self.lmbd  
+        lmbd = self.lmbd
         self.lmbd = 0.0  # compute gradient without lambda
-        Gacts, Gouts, GcWs, Gcbs = self._grad(x,y)
+        GcWs, Gcbs = self._grad(x,y, 0.0)
         GeWs, Gebs = self._estim_grad(x, y, eps)
         self.lmbd = lmbd
 
@@ -168,63 +156,16 @@ class NNet(BaseObject):
 
         if wrong:
             raise ValueError("Wrong gradient(s) detected")
-    
-    def epoch_bprop(self, x, y):
-        x = numpy.atleast_2d(x)
-        y = numpy.atleast_2d(y)
-        return self._epoch_bprop(x, y)
 
-    def _epoch_bprop(self, x, y):
-        Gacts, Gouts, GWs, Gbs = self._grad(x, y)
+    def _apply_dir(self, GWs, Gbs, alpha=1.0):
+        for (W, b), GW, Gb in zip(self.layers, GWs, Gbs):
+            W += alpha * GW
+            b += alpha * Gb
 
-        for l, GW, Gb in zip(self.layers, GWs, Gbs):
-            W, b = l
-            W -= self.alpha * GW
-            b -= self.alpha * Gb
+    def train_loop(self, trainer, epochs = 100):
+        return self._train_loop(trainer, epochs)
 
-    def _epoch_steep(self, x, y):
-        Gacts, Gouts, GWs, Gbs = self._grad(x, y)
-
-        self.dWs = [-GW for GW in GWs]
-        self.dbs = [-Gb for Gb in Gbs]
-
-        self._linesearch(self, y, x)
-
-    def _linesearch(self, x, y, maxloops=None):
-        best_err = self._test(x, y)
-        cur_err = 0
-        alpha = 0
-        if maxloops is None:
-            maxloops = int(1/self.alpha)
-
-        layers = [(l[0].copy(), l[1].copy()) for l in self.layers]
-
-        for i in xrange(maxloops):
-            alpha = i * self.alpha
-            for l, ol, dW, db in zip(self.layers, layers, self.dWs, self.dbs):
-                W, b = l
-                oW, ob = ol
-                W = oW + alpha * dW
-                b = ob + alpha * db
-            cur_err = self._test(x, y)
-            if cur_err < best_err:
-                best_err = cur_err
-            else:
-                alpha = (i-1)*self.alpha
-                break        
-
-        for l, ol, dW, db in zip(self.layers, layers, self.dWs, self.dbs):
-            W, b = l
-            oW, ob = ol
-            W = oW + alpha * dW
-            b = ob + alpha * db
-
-    def train_loop(self, x, y, epochs = 100):
-        x = numpy.atleast_2d(x)
-        y = numpy.atleast_2d(y)
-        return self._train_loop(x, y, epochs)
-
-    def _train_loop(self, x, y, epochs):
+    def _train_loop(self, trainer, epochs):
         for _ in xrange(epochs):
-            self._epoch_bprop(x, y)
+            trainer.epoch(self)
 

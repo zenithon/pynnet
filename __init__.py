@@ -4,3 +4,4 @@ from simplenet import *
 
 import nlins
 import errors
+import trainers

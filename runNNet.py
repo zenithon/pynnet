@@ -1,6 +1,7 @@
 from nlins import *
 from simplenet import *
 from errors import *
+from trainers import *
 import numpy as N
 import copy
 import time
@@ -11,10 +12,10 @@ NHIDDEN=45
 STEP=10
 
 def splitMat(mat,targetnum):
-	return (mat[:,:-targetnum],mat[:,-targetnum:])
+    return (mat[:,:-targetnum],mat[:,-targetnum:])
 
 def doEpoch(nnet,step):
-    nnet.train_loop(inputs,targets,epochs=step)
+    nnet.train_loop(trainer,epochs=step)
     
 def initNNet():
     nnet=SimpleNet(NINPUT,NHIDDEN,NOUTPUT,error=mse,onlin=sigmoid)
@@ -65,6 +66,7 @@ def runEarlyStopping(prefix='early_stop'):
 trainMatrix=N.loadtxt('piano_guitar_train.mat')
 testMatrix=N.loadtxt('piano_guitar_test.mat')
 (inputs,targets)=splitMat(trainMatrix,2)
+trainer = bprop(inputs, targets)
 #nnet=SimpleNet(120,45,2,onlin=sigmoid)
 
 
