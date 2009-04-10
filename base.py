@@ -1,12 +1,13 @@
 from __future__ import with_statement
 
-__all__ = ['pickle', 'BaseObject']
+__all__ = ['BaseObject', 'numpy', 'pickle']
 
 try:
     import cPickle as pickle
 except ImportError:
     import pickle
 
+import numpy
 
 class BaseObject(object):
     def _save_(self, file):
