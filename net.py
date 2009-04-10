@@ -48,11 +48,11 @@ class NNet(BaseObject):
         self.nlins, self.err, self.alpha, self.lmbd = pickle.load(file)
 
     def _save_layer(self, l, file):
-        numpy.save(file, l[0])
-        numpy.save(file, l[1])
+        numpy.save(file, l.W)
+        numpy.save(file, l.b)
 
     def _load_layer(self, file):
-        return (numpy.load(file), numpy.load(file))
+        return layer(numpy.load(file), numpy.load(file))
 
     def fprop(self, x):
         x = numpy.atleast_2d(x)
