@@ -169,11 +169,44 @@ propres = namedtuple('propres', 'acts outs')
 
 class BaseObject(object):
     def _save_(self, file):
+        r"""
+        Save the state to a file.
+
+        This receives a file object argument and should dump the
+        variables and maybe a tag to the file stream.
+
+        You can use the ``pickle.dump()`` method to save objects, but
+        please use ``numpy.save()``(and not ``numpy.savez()``) to save
+        numpy arrays if you must.  ``numpy`` and ``pickle`` do not mix
+        well.  Do not write to the file before the position of the
+        file pointer when you reveived the file objet.  Also leave the
+        file pointer at the end of the written data when you are
+        finished.  The ``numpy`` and ``pickle`` methods do this
+        automatically.
+
+        It is also generally a good idea to write some kind of tag to
+        uniquely identify your class and prevent the loading of bad
+        data.  This tag can also be used to identify the format
+        version in case you ever decide to change it.
+
+        You only need to care about the variables you define yourself.
+        In particular do not call the ``_save_()`` method of your
+        parent(s) class(es).  
+        """
         file.write("SOSV1")
 
     def save(self, fname):
+        r"""
+        Save the object to disk.
+
+        The named file will be created if not present and overwritten
+        if present.
+
+        Do NOT override this method, implement a ``_save_(file)``
+        method for your classes.
+        """
         if hasattr(self, '_vitual'):
-            raise ValueError('Cannot save virtual object.  Save the parent instead.')
+            raise ValueError('Cannot save a virtual object.  Save the parent instead.')
         
         with open(fname, 'wb') as f:
             for C in reversed(type(self).__mro__):
@@ -184,6 +217,20 @@ class BaseObject(object):
 
     @classmethod
     def load(cls, fname):
+        r"""
+        Load an object from a save file.
+
+        The resulting object will have the same class as the calling
+        class of this function.  If the saved object in the file is
+        not of the appropriate class exceptions may be raised.
+
+        Do NOT override this method, implement a ``_load_(file)``
+        method for your classes.
+
+        Do NOT rely on being able to load an objet as a different
+        class than the one it was before save() since that possibility
+        may go away in the future.
+        """
         obj = object.__new__(cls)
         with open(fname, 'rb') as f:
             for C in reversed(type(obj).__mro__):
@@ -194,6 +241,14 @@ class BaseObject(object):
         return obj
 
     def _load_(self, file):
+        r"""
+        Load the state from a file.
+
+        You should load what you saved in the ``_save_()`` method.  Be
+        careful not to leave the file pointer at the end of your saved
+        data.  The ``numpy`` and ``pickle`` methods do this
+        automatically.
+        """
         str = file.read(5)
         if str != "SOSV1":
             raise ValueError('Not a save file of file is corrupted')
