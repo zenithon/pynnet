@@ -175,13 +175,13 @@ class BaseObject(object):
         This receives a file object argument and should dump the
         variables and maybe a tag to the file stream.
 
-        You can use the ``pickle.dump()`` method to save objects, but
-        please use ``numpy.save()``(and not ``numpy.savez()``) to save
-        numpy arrays if you must.  ``numpy`` and ``pickle`` do not mix
+        You can use the `pickle.dump()` method to save objects, but
+        please use `numpy.save()`(and not `numpy.savez()`) to save
+        numpy arrays if you must.  `numpy` and `pickle` do not mix
         well.  Do not write to the file before the position of the
         file pointer when you reveived the file objet.  Also leave the
         file pointer at the end of the written data when you are
-        finished.  The ``numpy`` and ``pickle`` methods do this
+        finished.  The `numpy` and `pickle` methods do this
         automatically.
 
         It is also generally a good idea to write some kind of tag to
@@ -190,7 +190,7 @@ class BaseObject(object):
         version in case you ever decide to change it.
 
         You only need to care about the variables you define yourself.
-        In particular do not call the ``_save_()`` method of your
+        In particular do not call the `_save_()` method of your
         parent(s) class(es).  
         """
         file.write("SOSV1")
@@ -202,7 +202,7 @@ class BaseObject(object):
         The named file will be created if not present and overwritten
         if present.
 
-        Do NOT override this method, implement a ``_save_(file)``
+        Do NOT override this method, implement a `_save_()`
         method for your classes.
         """
         if hasattr(self, '_vitual'):
@@ -210,11 +210,9 @@ class BaseObject(object):
         
         with open(fname, 'wb') as f:
             for C in reversed(type(self).__mro__):
-                try:
+                if hasattr(C, '_save_'):
                     C._save_(self, f)
-                except AttributeError:
-                    pass
-
+    
     @classmethod
     def load(cls, fname):
         r"""
@@ -224,7 +222,7 @@ class BaseObject(object):
         class of this function.  If the saved object in the file is
         not of the appropriate class exceptions may be raised.
 
-        Do NOT override this method, implement a ``_load_(file)``
+        Do NOT override this method, implement a `_load_()`
         method for your classes.
 
         Do NOT rely on being able to load an objet as a different
@@ -234,19 +232,17 @@ class BaseObject(object):
         obj = object.__new__(cls)
         with open(fname, 'rb') as f:
             for C in reversed(type(obj).__mro__):
-                try:
+                if hasattr(C, '_load_'):
                     C._load_(obj, f)
-                except AttributeError:
-                    pass
         return obj
-
+    
     def _load_(self, file):
         r"""
         Load the state from a file.
 
-        You should load what you saved in the ``_save_()`` method.  Be
+        You should load what you saved in the `_save_()` method.  Be
         careful not to leave the file pointer at the end of your saved
-        data.  The ``numpy`` and ``pickle`` methods do this
+        data.  The `numpy` and `pickle` methods do this
         automatically.
         """
         str = file.read(5)
