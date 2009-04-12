@@ -7,26 +7,28 @@ __all__ = ['SimpleNet']
 
 class SimpleNet(BaseObject):
     r"""
-    Simple 3-layers neural network to experiment with new algorithms or implementations.
-    
-    It is also a tiny bit faster than NNet at computing gradients (and thus training).
+    Simple 3-layers neural network to experiment with new algorithms
+    or implementations.
 
-    WARNING: Not all functionality of this class is guaranteed to always work.  You should do some sanity checks before trusting results.
-    
-    Simplenet( ninputs, nhidden, noutputs, hnlin=tanh, onlin=none, error=mse, alpha=0.01, lmbd=0.0, dtype=numpy.float32 )
-    
-    ninputs : Dimension of input
-    nhidden : Dimension of hidden layer
-    noutput : Dimension of output
-    hnlin : hidden transfer function
-    onlin : output transfer function
-    error : Cost function to optimize
-    alpha : learning rate
-    lmbd  : regularisation term
-    dtype : data type of coefficients
+    WARNING: Not all functionality of this class is guaranteed to
+    always work.  You should do some sanity checks before trusting
+    results.
+
+    If you are not experimenting, you should use the `pynnet.NNet`
+    class which is documented and stable.
     """
     
     def __init__(self, ninputs, nhidden, noutputs, hnlin=tanh, onlin=none, error=mse, dtype=numpy.float32):
+        r"""
+        Parameters:
+        ninputs : Dimension of input
+        nhidden : Dimension of hidden layer
+        noutput : Dimension of output
+        hnlin : hidden transfer function
+        onlin : output transfer function
+        error : Cost function to optimize
+        dtype : data type of coefficients
+        """
         self.W1 = numpy.random.uniform(low=-1/numpy.sqrt(ninputs), high=1/numpy.sqrt(ninputs), size=(ninputs, nhidden)).astype(dtype)
         self.W2 = numpy.random.uniform(low=-1/numpy.sqrt(ninputs), high=1/numpy.sqrt(ninputs), size=(nhidden, noutputs)).astype(dtype)
         self.b1 = numpy.zeros(nhidden, dtype=dtype)
