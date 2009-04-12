@@ -3,34 +3,70 @@ import numpy
 __all__ = ['mse', 'nll','class_error']
 
 class Error(object):
+    def ___abname(self):
+        raise NotImplementedError
+    name = property(___abname, doc=r"""This is the name of your error function (a string).  It only needs to be readable.""")
+    
     def __repr__(self):
         return self.name
 
     def __call__(self, os, y):
+        r"""
+        This is where you should apply your error function.
+        
+        Parameters (the names don't have to be the same):
+        os -- the actual output of the network
+        y  -- the target outputs
+
+        You must return a single value that is the mean of the error
+        over all the examples given.
+        """
         raise NotImplementedError
 
     def _(self, os, y, C):
+        r"""
+        This is where you implement the derivative of your function.
+
+        Parameters (the names don't have to be the same):
+        os -- the actual outputs of the network
+        y  -- the target outputs
+        C  -- the computed cost for these inputs
+
+        You must return a gradient of the error over the outputs.  It
+        must have the same dimension as one output vector.
+        """
         raise NotImplementedError
 
     def test(self):
-        self.test_grad(verbose=False)
-
-    def test_grad(self, eps = 1e-5, verbose=True):
-        eps =  float(eps)
-
+        r"""
+        Convinience procedure to test the gradient accuracy.
+        """
         yc = numpy.random.random((2,5))
         yt = numpy.random.random((2,5))
+        self.test_grad(yc, yt, verbose=False)
 
+    def _estim_grad(self, yc, yt, eps):
+        r"""
+        Estimate the gradient using finite differences.
+        """
+        C = self(yc, yt)
+        ye = yc.copy()
+        G = numpy.empty(ye.shape)
+        for i, v in numpy.ndenumerate(ye):
+            ye[i] += eps
+            G[i] = (self(ye, yt) - C) / eps
+            ye[i] = v
+
+        return G
+
+    def test_grad(self, yc, yt, eps = 1e-5, verbose=True):
+        r"""
+        Test that the gradient is good by comparing against finite differences.
+        """
         C = self(yc, yt)
         
         y_f = self._(yc, yt, C)
-
-        ye = yc.copy()
-        y_e = numpy.empty(ye.shape)
-        for i, v in numpy.ndenumerate(ye):
-            ye[i] += eps
-            y_e[i] = (self(ye, yt) - C) / eps
-            ye[i] = v
+        y_e = self._estim_grad(yc, yt, eps)
             
         eval = y_f/y_e
         
@@ -39,27 +75,62 @@ class Error(object):
             raise ValueError('Gradient is not within norms')
 
 class Mse(Error):
+    r"""
+    Error class for Meas Squared Error.
+
+    The error is computed like this:
+        ((out-target)^2).mean()
+
+    This is a good measure for regression tasks.
+
+    TESTS::
+    
+    >>> mse
+    mse
+    """
     name = "mse"
 
     def __call__(self, os, y):
         return ((os-y)**2).mean()
 
     def _(self, os, y, C):
+        r"""
+        >>> mse.test()
+        """
         return 2*(os-y)/os.size
 
 mse = Mse()
 
 class Nll(Error):
+    r"""
+    TESTS::
+
+    >>> nll
+    nll
+    """
     name = "nll"
 
     def __call__(self, os, y):
         return (-numpy.log(os[y.astype(numpy.bool)])).mean()
 
     def _(self, os, y, C):
+        r"""
+        >>> nll.test()
+        """
         res = numpy.zeros(os.shape)
         sel = y.astype(numpy.bool)
         res[sel] = -1/(os[sel]*os.size)
         return res
+
+    def test(self):
+        r"""
+        Convinience procedure to test the gradient accuracy.
+
+        Modified to to use only 0 or 1 as targets.
+        """
+        yc = numpy.random.random((2,5))
+        yt = numpy.random.randint(2, size=(2,5))
+        self.test_grad(yc, yt, verbose=False)
 
 nll = Nll()
 
