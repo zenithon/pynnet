@@ -5,7 +5,137 @@ from errors import *
 
 __all__ = ['NNet']
 
-class NNet(BaseObject):
+class AbstractNet(BaseObject):
+    r"""
+    Base class for neural networks.
+
+    Defines a couple of methods that must be implemented for the rest
+    of this package to be able to work with your class.
+
+    These methods are::
+    - `_test()`
+    - `_grad()`
+    - `_apply_dir()`
+
+    In addition to these methods, you must define an attribute or
+    property named `layers` that needs only to be readable.  It must
+    return a list of `layer` named tuples which represents the
+    connection weights of the network when read.
+
+    Of course, for the network to be really usable, you should define
+    some other methods, but those are left unspecified to allow for
+    experimentation.
+
+    Also, the `test_grad()` method along with some helpers are
+    provided to help you test your implementation of the `_grad()`
+    method.
+    """
+
+    def _test(self, x, y):
+        r"""
+        Test the neural net on the provided input-target pairs.
+
+        Parameters:
+        x -- the inputs
+        y -- the targets
+
+        Returns a single value that is the average of the error over
+        each example.
+        """
+        raise NotImplementedError
+
+    def _grad(self, x, y, lmbd):
+        r"""
+        Compute the gradient of the error for the given examples.
+
+        Parameters:
+        x -- the inputs
+        y -- the outputs
+        lmbd -- lambda parameter for weight penality (set to 0.0 to disable)
+        
+        Returns the gradient of the error for each weight in the
+        network as a layer structure with the same dimensions as the
+        `layers` property of self.
+        """
+        raise NotImplementedError
+
+    def _apply_dir(self, G, alpha=1.0):
+        r"""
+        Move the weights of the network along the given direction.
+
+        Parameters:
+        G -- direction (same format as the `layers` property)
+        alpha -- (default: 1.0) the amount of movement to make
+
+        Adds to the weights of the network the directions given
+        multiplied by the `alpha` parameter.
+        """
+        raise NotImplementedError
+
+    def _estim_grad(self, x, y, eps):
+        r"""private implementation of the finite differences for `AbstractNet.test_grad()`"""
+        v = self._test(x, y)
+        
+        G = [None] * len(self.layers)
+        
+        for k, (W, b) in enumerate(self.layers):
+            
+            GW = numpy.empty(W.shape, W.dtype)
+            Gb = numpy.empty(b.shape, b.dtype)
+            
+            for i, w in numpy.ndenumerate(W):
+                W[i] += eps
+                GW[i] = (self._test(x,y) - v)/eps
+                W[i] = w
+
+            for i, w in numpy.ndenumerate(b):
+                b[i] += eps
+                Gb[i] = (self._test(x,y) - v)/eps
+                b[i] = w
+
+            G[k] = layer(GW, Gb)
+
+        return G
+
+    def _test_grad(self, x, y, verbose, eps):
+        r"""private implementation of `AbstractNet.test_grad()`"""
+        Gc = self._grad(x,y, 0.0)
+        Ge = self._estim_grad(x, y, eps)
+
+        wrong = False
+
+        for Glc, Gle in zip(Gc, Ge):
+            rW = Glc.W/Gle.W
+            rb = Glc.b/Gle.b
+            if verbose:
+                print rW
+                print rb
+            if rb.max() > 1.01 or rb.min() < 0.99 \
+                    or rW.max() > 1.01 or rW.min() < 0.99:
+                wrong = True
+        
+        if wrong:
+            raise ValueError("Wrong gradient(s) detected")
+
+    def test_grad(self, x, y, verbose=True, eps=1e-4):
+        r"""
+        Test that the gradient computation is good.
+
+        Parameters:
+        x -- sample inputs
+        y -- sample targets
+        verbose -- (default: True) print the ratio matrices?
+        eps -- (default: 1e-4) the epsilon to use in the finite difference
+
+        Compares the symbolic gradient computed against the gradients
+        computed using the finite differences method and checks that
+        the ratio between the two is reasonable.
+        """
+        x = numpy.atleast_2d(x)
+        y = numpy.atleast_2d(y)
+        return self._test_grad(x, y, verbose, eps)
+
+class NNet(AbstractNet):
     def __init__(self, layers, nlins=(tanh, none), error=mse, dtype=numpy.float32):
         r"""
         Create a new fully-connected neural network with the given parameters.
@@ -43,13 +173,17 @@ class NNet(BaseObject):
         
         TESTS::
         
-        >>> net = NNet([4, 5, 2])
+        >>> net = NNet([2, 2, 1])
         >>> net.save('/tmp/pynnet_test_save_nnet')
         >>> net2 = NNet.load('/tmp/pynnet_test_save_nnet')
         >>> type(net2)
         <class 'pynnet.net.NNet'>
         >>> type(net2.layers[0])
         <class 'pynnet.base.layer'>
+        >>> x = [[0, 0], [1, 1], [0, 1], [1, 0]]
+        >>> y = [[0], [0], [1], [1]]
+        >>> net.test_grad(x, y, verbose=False)
+        >>> net2.test_grad(x, y, verbose=False)
         """
         lim = 1/numpy.sqrt(layers[0])
         makelayer = lambda i, o: layer(numpy.random.uniform(low=-lim, high=lim, size=(i, o)).astype(dtype), numpy.zeros(o, dtype=dtype))
@@ -238,19 +372,19 @@ class NNet(BaseObject):
         >>> net = NNet([2, 2, 1])
         >>> x = [[0, 0], [1, 1], [0, 1], [1, 0]]
         >>> y = [[0], [0], [1], [1]]
-        >>> GWs, Gbs = net.grad(x, y)
-        >>> len(GWs)
+        >>> G = net.grad(x, y)
+        >>> len(G)
         2
-        >>> len(Gbs)
-        2
-        >>> GWs[0].shape
+        >>> G[0].W.shape
         (2, 2)
-        >>> GWs[1].shape
+        >>> G[1].W.shape
         (2, 1)
-        >>> Gbs[0].shape
+        >>> G[0].b.shape
         (2,)
-        >>> Gbs[1].shape
+        >>> G[1].b.shape
         (1,)
+        >>> type(G[0])
+        <class 'pynnet.base.layer'>
         """
         x = numpy.atleast_2d(x)
         y = numpy.atleast_2d(y)
@@ -270,89 +404,19 @@ class NNet(BaseObject):
             Gouts[i] = numpy.dot(self.layers[i+1].W, Gacts[i+1].T).T
             Gacts[i] = Gouts[i] * self.nlins[i]._(acts[i], outs[i])
         
-        GWs = [None] * len(self.layers)
-        Gbs = [None] * len(self.layers)
+        
+        G = [None] * len(self.layers)
         
         for i in xrange(-1,-len(self.layers), -1):
-            GWs[i] = numpy.dot(outs[i-1].T, Gacts[i]) + 2.0 * lmbd * self.layers[i].W
-            Gbs[i] = Gacts[i].sum(axis=0)
+            G[i] = layer(numpy.dot(outs[i-1].T, Gacts[i]) + 2.0 * lmbd * self.layers[i].W, \
+                             Gacts[i].sum(axis=0))
 
-        GWs[0] = numpy.dot(x.T, Gacts[0]) + 2.0 * lmbd * self.layers[0].W
-        Gbs[0] = Gacts[0].sum(axis=0)
+        G[0] = layer(numpy.dot(x.T, Gacts[0]) + 2.0 * lmbd * self.layers[0].W, \
+                         Gacts[0].sum(axis=0))
 
-        return GWs, Gbs#, Gacts, Gouts
-    
-    def _estim_grad(self, x, y, eps):
-        r"""private implementation of the finite differences for `NNet.test_grad()`"""
-        v = self._test(x, y)
+        return G
 
-        GWs = [numpy.empty(l.W.shape, l.W.dtype) for l in self.layers]
-        Gbs = [numpy.empty(l.b.shape, l.b.dtype) for l in self.layers]
-        
-        for (W, b), GW, Gb in zip(self.layers, GWs, Gbs):
-
-            for i, w in numpy.ndenumerate(W):
-                W[i] += eps
-                GW[i] = (self._test(x,y) - v)/eps
-                W[i] = w
-
-            for i, w in numpy.ndenumerate(b):
-                b[i] += eps
-                Gb[i] = (self._test(x,y) - v)/eps
-                b[i] = w
-
-        return GWs, Gbs
-
-    def test_grad(self, x, y, verbose=True, eps=1e-4):
-        r"""
-        Test that the gradient computation is good.
-
-        Parameters:
-        x -- sample inputs
-        y -- sample targets
-        verbose -- (default: True) print the ratio matrices?
-        eps -- (default: 1e-4) the epsilon to use in the finite difference
-
-        Compares the symbolic gradient computed against the gradients
-        computed using the finite differences method and checks that
-        the ratio between the two is reasonable.
-
-        EXAMPLES::
-        
-        >>> net = NNet([2, 2, 1])
-        >>> x = [[0, 0], [1, 1], [0, 1], [1, 0]]
-        >>> y = [[0], [0], [1], [1]]
-        >>> net.test_grad(x, y, verbose=False)
-        """
-        x = numpy.atleast_2d(x)
-        y = numpy.atleast_2d(y)
-        return self._test_grad(x, y, verbose, eps)
-
-    def _test_grad(self, x, y, verbose, eps):
-        r"""private implementation of `NNet.test_grad()`"""
-        GcWs, Gcbs = self._grad(x,y, 0.0)
-        GeWs, Gebs = self._estim_grad(x, y, eps)
-
-        wrong = False
-
-        for GWc, GWe in zip(GcWs, GeWs):
-            rW = GWc/GWe
-            if verbose:
-                print rW
-            if rW.max() > 1.01 or rW.min() < 0.99:
-                wrong = True
-
-        for Gbc, Gbe in zip(Gcbs, Gebs):
-            rb = Gbc/Gbe
-            if verbose:
-                print rb
-            if rb.max() > 1.01 or rb.min() < 0.99:
-                wrong = True
-
-        if wrong:
-            raise ValueError("Wrong gradient(s) detected")
-
-    def _apply_dir(self, GWs, Gbs, alpha=1.0):
+    def _apply_dir(self, G, alpha=1.0):
         r"""
         Private API for the trainers.
 
@@ -363,13 +427,13 @@ class NNet(BaseObject):
         >>> net = NNet([2, 2, 1])
         >>> x = [[0, 0], [1, 1], [0, 1], [1, 0]]
         >>> y = [[0], [0], [1], [1]]
-        >>> GWs, Gbs = net.grad(x, y)
+        >>> G = net.grad(x, y)
         >>> error = net.test(x, y)
-        >>> net._apply_dir(GWs, Gbs, -0.2)
+        >>> net._apply_dir(G, -0.2)
         >>> error > net.test(x, y)
         True
         """
-        for (W, b), GW, Gb in zip(self.layers, GWs, Gbs):
+        for (W, b), (GW, Gb) in zip(self.layers, G):
             W += alpha * GW
             b += alpha * Gb
 

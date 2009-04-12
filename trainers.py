@@ -2,29 +2,39 @@ from base import *
 
 __all__ = ['bprop', 'steepest', 'conj']
 
-class Trainer(BaseObject):
+class Trainer(object):
     def __init__(self, x, y):
         self.x = numpy.atleast_2d(x)
         self.y = numpy.atleast_2d(y)
 
-    def _save_(self, file):
-        raise NotImplementedError
-
     def reset(self):
         r"""
-        Resets the internal state of the trainer to zero.
+        Resets the internal state of the trainer.
 
-        Can be used to change the net being trained or to simply restart training anew.
+        Can be used to change the net being trained or to simply
+        restart training anew.
 
-        If you have nothing to do just omit it, the default implementation does just that: nothing.
+        If you have nothing to do just omit it, the default
+        implementation does just that: nothing.
         """
         pass
 
     def epoch(self, nnet):
         r"""
-        Computes (v, d) such that adding v*d[i] for each i in the coefficients of the network should improve the error.
-        
-        In a simple back-propagation algorithm, this would return (-alpha, grad).
+        Computes what is needed to do an epoch.
+
+        Parameters:
+        nnet -- the neural net to train
+
+        See the documentation of `AbstractNet` to see what methods you
+        can call to interact with the network.
+
+        This method is also responsible to apply the changes to the
+        network (usually using the `AbstractNet._apply_dir()` API) to
+        make it evolve toward the computed direction.
+
+        The computations involved should not do more than one pass
+        over all the training data.
         """
         raise NotImplementedError
 
@@ -35,10 +45,10 @@ class bprop(Trainer):
         self.lmbd = lmbd
     
     def epoch(self, nnet):
-        GWs, Gbs = nnet._grad(self.x, self.y, lmbd=self.lmbd)
-        nnet._apply_dir(GWs, Gbs, -self.alpha)
+        G = nnet._grad(self.x, self.y, lmbd=self.lmbd)
+        nnet._apply_dir(G, -self.alpha)
 
-def _linesearch(nnet, x, y, GWs, Gbs, step):
+def _linesearch(nnet, x, y, G, step):
         r"""
         Cheap line search.  Could be improved.
         """
@@ -48,12 +58,12 @@ def _linesearch(nnet, x, y, GWs, Gbs, step):
         maxtries = int(1/step)
 
         for i in xrange(1, maxtries):
-            nnet._apply_dir(GWs, Gbs, -step)
+            nnet._apply_dir(G, -step)
             cur_err = nnet._test(x, y)
             if cur_err < best_err:
                 best_err = cur_err
             else:
-                nnet._apply_dir(GWs, Gbs, step)
+                nnet._apply_dir(G, step)
                 break
 
 class steepest(Trainer):
@@ -63,20 +73,20 @@ class steepest(Trainer):
         self.lmbd = lmbd
     
     def epoch(self, nnet):
-        GWs, Gbs = nnet._grad(self.x, self.y, lmbd=self.lmbd)
-        _linesearch(nnet, self.x, self.y, GWs, Gbs, self.step)
+        G = nnet._grad(self.x, self.y, lmbd=self.lmbd)
+        _linesearch(nnet, self.x, self.y, G, self.step)
 
-def beta_FR(GWs, Gbs, oGWs, oGbs, dWs, dbs):
-    return sum((GW**2).sum()+(Gb**2).sum() for GW, Gb in zip(GWs, Gbs)) / \
-        sum((oGW**2).sum()+(oGb**2).sum() for oGW, oGb in zip(oGWs, oGbs))
+def beta_FR(G, oG, d):
+    return sum((Gl.W**2).sum()+(Gl.b**2).sum() for Gl in G) / \
+        sum((oGl.W**2).sum()+(oGl.b**2).sum() for oGl in oG)
 
-def beta_PR(GWs, Gbs, oGWs, oGbs, dWs, dbs):
-    return sum((GW*(GW-oGW)).sum()+(Gb*(Gb-oGb)).sum() for GW, Gb, oGW, oGb in zip(GWs, Gbs, oGWs, oGbs)) / \
-        sum((oGW**2).sum()+(oGb**2).sum() for oGW, oGb in zip(oGWs, oGbs))
+def beta_PR(G, oG, d):
+    return sum((Gl.W*(Gl.W-oGl.W)).sum()+(Gl.b*(Gl.b-oGl.b)).sum() for Gl, oGl in zip(G, oG)) / \
+        sum((oGl.W**2).sum()+(oGl.b**2).sum() for oGl in oG)
 
-def beta_HS(GWs, Gbs, oGWs, oGbs, dWs, dbs):
-    return sum((GW*(GW-oGW)).sum()+(Gb*(Gb-oGb)).sum() for GW, Gb, oGW, oGb in zip(GWs, Gbs, oGWs, oGbs)) / \
-        sum((dW*(GW-oGW)).sum()+(db*(Gb-oGb)).sum() for GW, Gb, oGW, oGb, dW, db in zip(GWs, Gbs, oGWs, oGbs, dWs, dbs))
+def beta_HS(G, oG, d):
+    return sum((Gl.W*(Gl.W-oGl.W)).sum()+(Gl.b*(Gl.b-oGl.b)).sum() for Gl, oGl in zip(G, oG)) / \
+        sum((dl.W*(Gl.W-oGl.W)).sum()+(dl.b*(Gl.b-oGl.b)).sum() for Gl, oGl, dl in zip(G, oG, d))
 
 class conj(Trainer):
     def __init__(self, x, y, step=0.01, lmbd=0.0, beta_method='PR'):
@@ -93,23 +103,17 @@ class conj(Trainer):
             raise ValueError('Unknown beta method "%s"'%(beta_method,))
 
     def reset(self):
-        del self.dWs
-        del self.dbs
-        del self.GWs
-        del self.Gbs
+        del self.d
+        del self.G
 
     def epoch(self, nnet):
-        GWs, Gbs = nnet._grad(self.x, self.y, lmbd=self.lmbd)
+        G = nnet._grad(self.x, self.y, lmbd=self.lmbd)
         try:
-            beta = max(self.beta(GWs, Gbs, self.GWs, self.Gbs, self.dWs, self.dbs), 0)
-            dWs = [GW + beta*dW for GW, dW in zip(GWs, self.dWs)]
-            dbs = [Gb + beta*db for Gb, db in zip(Gbs, self.dbs)]
-            self.GWs = GWs
-            self.Gbs = Gbs
-            self.dWs = dWs
-            self.dbs = dbs
+            beta = max(self.beta(G, self.G, self.d), 0)
+            d = [layer(Gl.W + beta*dl.W, Gl.b + beta*dl.b) for Gl, dl in zip(G, self.d)]
+            self.G = G
+            self.d = d
         except AttributeError:
-            self.dWs = self.GWs = GWs
-            self.dbs = self.Gbs = Gbs
+            self.d = self.G = G
         
-        _linesearch(nnet, self.x, self.y, self.dWs, self.dbs, self.step)
+        _linesearch(nnet, self.x, self.y, self.d, self.step)
