@@ -39,7 +39,16 @@ class Trainer(object):
         raise NotImplementedError
 
 class bprop(Trainer):
-    def __init__(self, x, y, alpha=0.01, lmbd=0.0):
+    def __init__(self, x, y, lmbd=0.0, alpha=0.01):
+        r"""
+        Standard back-propagation trainer.
+
+        Parameters:
+        x -- inputs
+        y -- targets
+        lmbd -- (default: 0.0) the weight decay term
+        alpha -- (default: 0.01) the gradient step to take at each iteration
+        """
         Trainer.__init__(self, x, y)
         self.alpha = alpha
         self.lmbd = lmbd
@@ -48,33 +57,49 @@ class bprop(Trainer):
         G = nnet._grad(self.x, self.y, lmbd=self.lmbd)
         nnet._apply_dir(G, -self.alpha)
 
-def _linesearch(nnet, x, y, G, step):
+def _linesearch(nnet, x, y, G, maxalpha, eps):
         r"""
         Cheap line search.  Could be improved.
         """
-        best_err = nnet._test(x, y)
-        cur_err = 0
-        alpha = 0
-        maxtries = int(1/step)
-
-        for i in xrange(1, maxtries):
-            nnet._apply_dir(G, -step)
-            cur_err = nnet._test(x, y)
-            if cur_err < best_err:
-                best_err = cur_err
+        near = 0.0
+        far = maxalpha
+        where = maxalpha
+        near_err = nnet._test(x, y)
+        nnet._apply_dir(G, -where)
+        far_err = nnet._test(x, y)
+        
+        while far-near > eps:
+            here = (near+far)/2
+            nnet._apply_dir(G, where-here)
+            where = here
+            here_err = nnet._test(x, y)
+            if here_err < near_err:
+                near = here
+                near_err = here_err
             else:
-                nnet._apply_dir(G, step)
-                break
+                far = here
+                far_err = here_err
 
 class steepest(Trainer):
-    def __init__(self, x, y, step=0.01, lmbd=0.0):
+    def __init__(self, x, y, lmbd=0.0, eps=0.01, maxalpha=20.0):
+        r"""
+        Steepest descent trainer.
+
+        Parameters:
+        x -- inputs
+        y -- targets
+        lmbd -- (default: 0.0) the weight decay term
+        eps -- (default: 0.01) the tolerance level for the minimum
+        maxalpha -- (default: 20.0) the farthest along the gradient to look
+        """
         Trainer.__init__(self, x,y)
-        self.step = step
         self.lmbd = lmbd
+        self.eps = eps
+        self.maxalpha = maxalpha
     
     def epoch(self, nnet):
         G = nnet._grad(self.x, self.y, lmbd=self.lmbd)
-        _linesearch(nnet, self.x, self.y, G, self.step)
+        _linesearch(nnet, self.x, self.y, self.d, maxalpha=self.maxalpha, eps=self.eps)
 
 def beta_FR(G, oG, d):
     return sum((Gl.W**2).sum()+(Gl.b**2).sum() for Gl in G) / \
@@ -89,10 +114,22 @@ def beta_HS(G, oG, d):
         sum((dl.W*(Gl.W-oGl.W)).sum()+(dl.b*(Gl.b-oGl.b)).sum() for Gl, oGl, dl in zip(G, oG, d))
 
 class conj(Trainer):
-    def __init__(self, x, y, step=0.01, lmbd=0.0, beta_method='PR'):
+    def __init__(self, x, y, lmbd=0.0, eps=0.01, maxalpha=10, beta_method='PR'):
+        r"""
+        Conjugate gradient trainer.
+
+        Parameters:
+        x -- inputs
+        y -- targets
+        lmbd -- (default: 0.0) the weight decay term
+        eps -- (default: 0.01) the tolerance level for the minimum
+        maxalpha -- (default: 20.0) the farthest along the gradient to look
+        beta_method -- (default: 'PR') one of 'FR', 'PR', and 'HS'.  The formula to use to compute the beta term.
+        """
         Trainer.__init__(self, x, y)
-        self.step = step
         self.lmbd = lmbd
+        self.eps = eps
+        self.maxalpha = maxalpha
         if beta_method == 'FR':
             self.beta = beta_FR
         elif beta_method == 'PR':
@@ -116,4 +153,4 @@ class conj(Trainer):
         except AttributeError:
             self.d = self.G = G
         
-        _linesearch(nnet, self.x, self.y, self.d, self.step)
+        _linesearch(nnet, self.x, self.y, self.d, maxalpha=self.maxalpha, eps=self.eps)
