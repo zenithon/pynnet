@@ -280,11 +280,11 @@ class NNet(AbstractNet):
         >>> acts[0].shape
         (4, 2)
         >>> acts[0].dtype
-        float32
+        dtype('float32')
         >>> outs[0].shape
         (4, 2)
         >>> outs[0].dtype
-        float32
+        dtype('float32')
         >>> acts[1].shape
         (4, 1)
         >>> outs[1].shape

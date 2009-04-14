@@ -1,7 +1,8 @@
-from nlins import *
-from simplenet import *
-from errors import *
-from trainers import *
+from pynnet import *
+from pynnet.nlins import *
+from pynnet.errors import *
+from pynnet.trainers import *
+
 import numpy as N
 import copy
 import time

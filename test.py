@@ -9,6 +9,4 @@ def runTests(options = doctest.ELLIPSIS or doctest.DONT_ACCEPT_TRUE_FOR_1):
         doctest.testmod(mod, extraglobs=predefs, optionflags=options)
 
 if __name__ == '__main__':
-    import sys
-    sys.path.append('..')
     runTests()
