@@ -50,12 +50,12 @@ class Autoencoder(SimpleNet):
             raise ValueError('Not a valid Autoencoder save file')
 
     def test(self, x):
-        x = numpy.atleast_2d(x)
+        x = self._convert(x)
         return self._test(x, x)
 
     def code(self, x):
-        x = numpy.atleast_2d(x)
-        return self._fprop(x)[1]
+        x = self._convert(x)
+        return self._fprop(x).outs[1]
 
     def train_loop(self, x, trainer_type=bprop, epochs=100, **trainer_opts):
         return self._train_loop(auto_trainer(trainer_type, x, self.noisyness, self.corrupt_value, trainer_opts), epochs)
@@ -134,7 +134,7 @@ class StackedAutoencoder(NNet):
         >>> sae.code(x).shape
         (4, 2)
         """
-        x = numpy.atleast_2d(x)
+        x = self._convert(x)
         return self._fprop(x).outs[len(self.layers)/2-1]
     
     def test(self, x):
@@ -153,7 +153,7 @@ class StackedAutoencoder(NNet):
         >>> error > sae.test(x)
         True
         """
-        x = numpy.atleast_2d(x)
+        x = self._convert(x)
         return self._test(x, x)
 
     def grad(self, x, lmbd=0.0):
@@ -174,7 +174,7 @@ class StackedAutoencoder(NNet):
         >>> G[1].W.shape
         (2, 4)
         """
-        x = numpy.atleast_2d(x)
+        x = self._convert(x)
         return self._grad(x, x, lmbd)
 
     def pretrain(self, x, trainer_type=conj, loops=10, **trainer_opts):
@@ -195,12 +195,11 @@ class StackedAutoencoder(NNet):
         >>> x = [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]
         >>> sae.pretrain(x)
         """
-        x = numpy.atleast_2d(x)
+        x = self._convert(x)
         return self._pretrain(x, trainer_type, loops, trainer_opts)
     
     def _pretrain(self, x, trainer_type, loops, trainer_opts):
         r"""private implementation of `StackedAutoencoder.pretrain()`"""
-        x = numpy.atleast_2d(x)
         tnet = layer_encoder(self.layers[0].W, self.layers[0].b, nlin=self.nlins[0])
         tnet.train_loop(auto_trainer(trainer_type, x, self.noisyness, self.corrupt_value, trainer_opts), epochs=loops)
         

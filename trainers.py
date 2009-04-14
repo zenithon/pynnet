@@ -59,7 +59,18 @@ class bprop(Trainer):
 
 def _linesearch(nnet, x, y, G, maxalpha, eps):
         r"""
-        Cheap line search.  Could be improved.
+        Bisecting line search.
+
+        Parameters:
+        nnet -- the net to search on
+        x -- inputs
+        y -- targets
+        G -- gradient of the net for the input target pairs
+        maxalpha -- the farthest point to look for a minimum
+        eps -- the precision of the minimum
+
+        This function will look for the minimum of the error between 0
+        and -`maxalpha` over the line formed by `nnet` and `G`.
         """
         near = 0.0
         far = maxalpha

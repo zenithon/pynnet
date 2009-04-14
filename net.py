@@ -117,6 +117,9 @@ class AbstractNet(BaseObject):
         if wrong:
             raise ValueError("Wrong gradient(s) detected")
 
+    def _convert(self, a):
+        return numpy.asarray(a, dtype=self.layers[0].W.dtype)
+
     def test_grad(self, x, y, verbose=True, eps=1e-4):
         r"""
         Test that the gradient computation is good.
@@ -131,8 +134,8 @@ class AbstractNet(BaseObject):
         computed using the finite differences method and checks that
         the ratio between the two is reasonable.
         """
-        x = numpy.atleast_2d(x)
-        y = numpy.atleast_2d(y)
+        x = self._convert(x)
+        y = self._convert(y)
         return self._test_grad(x, y, verbose, eps)
 
 class NNet(AbstractNet):
@@ -276,14 +279,18 @@ class NNet(AbstractNet):
         True
         >>> acts[0].shape
         (4, 2)
+        >>> acts[0].dtype
+        float32
         >>> outs[0].shape
         (4, 2)
+        >>> outs[0].dtype
+        float32
         >>> acts[1].shape
         (4, 1)
         >>> outs[1].shape
         (4, 1)
         """
-        x = numpy.atleast_2d(x)
+        x = self._convert(x)
         return self._fprop(x)
 
     def _fprop(self, x):
@@ -326,8 +333,8 @@ class NNet(AbstractNet):
         >>> error > net.test(x, y)
         True
         """
-        x = numpy.atleast_2d(x)
-        y = numpy.atleast_2d(y)
+        x = self._convert(x)
+        y = self._convert(y)
         return self._test(x, y)
 
     def _test(self, x, y):
@@ -352,7 +359,7 @@ class NNet(AbstractNet):
         >>> net.eval(x).shape
         (4, 1)
         """
-        x = numpy.atleast_2d(x)
+        x = self._convert(x)
         return self._eval(x)
 
     def _eval(self, x):
@@ -386,33 +393,25 @@ class NNet(AbstractNet):
         >>> type(G[0])
         <class 'pynnet.base.layer'>
         """
-        x = numpy.atleast_2d(x)
-        y = numpy.atleast_2d(y)
+        x = self._convert(x)
+        y = self._convert(y)
         return self._grad(x, y, lmbd)
 
     def _grad(self, x, y, lmbd):
         r"""private implementation of `NNet.grad()`"""
         acts, outs = self._fprop(x)
-        
-        Gouts = [None] * len(outs)
-        Gacts = [None] * len(acts)
-        
-        Gouts[-1] = self.err._(outs[-1], y, self.err(outs[-1], y))
-        Gacts[-1] = Gouts[-1] * self.nlins[-1]._(acts[-1], outs[-1])
-        
-        for i in xrange(-2, -len(outs) - 1, -1):
-            Gouts[i] = numpy.dot(self.layers[i+1].W, Gacts[i+1].T).T
-            Gacts[i] = Gouts[i] * self.nlins[i]._(acts[i], outs[i])
-        
-        
+
         G = [None] * len(self.layers)
         
-        for i in xrange(-1,-len(self.layers), -1):
-            G[i] = layer(numpy.dot(outs[i-1].T, Gacts[i]) + 2.0 * lmbd * self.layers[i].W, \
-                             Gacts[i].sum(axis=0))
+        Gacts = self.err._(outs[-1], y, self.err(outs[-1], y)) * self.nlins[-1]._(acts[-1], outs[-1])
 
-        G[0] = layer(numpy.dot(x.T, Gacts[0]) + 2.0 * lmbd * self.layers[0].W, \
-                         Gacts[0].sum(axis=0))
+        for i in xrange(-1,-len(self.layers), -1):
+            G[i] = layer(numpy.dot(outs[i-1].T, Gacts) + 2.0 * lmbd * self.layers[i].W, \
+                             Gacts.sum(axis=0))
+            Gacts = numpy.dot(self.layers[i].W, Gacts.T).T * self.nlins[i-1]._(acts[i-1], outs[i-1])
+
+        G[0] = layer(numpy.dot(x.T, Gacts) + 2.0 * lmbd * self.layers[0].W, \
+                         Gacts.sum(axis=0))
 
         return G
 
