@@ -23,7 +23,7 @@ class auto_trainer(Trainer):
     def epoch(self, nnet):
         if self.noisyness > 0.0:
             self.trainer.x = self.trainer.y.copy()
-            self.trainer.x[numpy.random.random(x.shape) < self.noisyness] = self.corrupt_value
+            self.trainer.x[numpy.random.random(self.trainer.x.shape) < self.noisyness] = self.corrupt_value
         self.trainer.epoch(nnet)
 
 class Autoencoder(SimpleNet):
@@ -192,6 +192,9 @@ class StackedAutoencoder(NNet):
         EXAMPLES::
         
         >>> sae = StackedAutoencoder([4, 3, 2], nlins=[sigmoid])
+        >>> x = [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]
+        >>> sae.pretrain(x)
+        >>> sae = StackedAutoencoder([4, 2], nlins=[sigmoid], noisyness=0.1)
         >>> x = [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]
         >>> sae.pretrain(x)
         """
