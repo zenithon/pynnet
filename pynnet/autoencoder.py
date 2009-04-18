@@ -1,6 +1,7 @@
 from base import *
 
 from net import *
+from net import AbstractNet
 from simplenet import *
 from nlins import *
 from errors import *
@@ -60,11 +61,56 @@ class Autoencoder(SimpleNet):
     def train_loop(self, x, trainer_type=bprop, epochs=100, **trainer_opts):
         return self._train_loop(auto_trainer(trainer_type, x, self.noisyness, self.corrupt_value, trainer_opts), epochs)
 
-def layer_encoder(W1, b1, nlin):
+def layer_encoder(l1, l2, nlin):
     r"""create a virtual net out of a layer for pretraining"""
-    W2 = W1.T.copy()
-    b2 = numpy.zeros(W2.shape[1])
-    return NNet.virtual([layer(W1, b1), layer(W2, b2)], nlins=(nlin, nlin), error=mse)
+    return NNet.virtual([l1, l2], nlins=(nlin, nlin), error=mse)
+
+class tied_layer_encoder(AbstractNet):
+    r"""TESTING, do not touch (unless you want to)"""
+    def __init__(self, l1, l2, nlin):
+        self._virtual = True
+        self.layers = [l1, l2]
+        self.nlin = nlin
+    
+    def _fprop(self, x):
+        acts = [None, None]
+        outs = [None, None]
+        outs[-1] = x
+        for i in xrange(len(self.layers)):
+            acts[i] = numpy.dot(outs[i-1], self.layers[i].W) + self.layers[i].b
+            outs[i] = self.nlins[i](acts[i])
+
+        return propres(acts, outs)
+
+    def _test(self, x, y):
+        return mse(self._fprop(x).outs[1], y)
+
+    def _grad(self, x, y, lmbd):
+        acts, outs = self._fprop(x)
+
+        G = [None, None]
+        
+        Gacts = mse._(outs[1], y, self.err(outs[1], y))
+        Gacts *= self.nlin._(acts[1], outs[1])
+
+        G[1] = layer(numpy.dot(outs[1].T, Gacts) + 2.0 * lmbd * self.layers[1].W, \
+                             Gacts.sum(axis=0))
+
+        Gacts = numpy.dot(self.layers[1].W, Gacts.T).T
+        Gacts *= self.nlin._(acts[0], outs[0])
+        
+        G[0] = layer(None, Gacts.sum(axis=0))
+
+        return G
+    
+    def _apply_dir(self, G, alpha=1.0):
+        self.layers[1].W[:] += alpha * G[1].W
+        self.layers[1].b[:] += alpha * G[1].b
+        self.layers[0].b[:] += alpha * G[0].b
+
+    def train_loop(self, trainer, epochs = 100):
+        for _ in xrange(epochs):
+            trainer.epoch(self)
 
 class StackedAutoencoder(NNet):
     def __init__(self, sizes, nlins, noisyness=0.0, corrupt_value=0.0, dtype=numpy.float32):
@@ -203,12 +249,12 @@ class StackedAutoencoder(NNet):
     
     def _pretrain(self, x, trainer_type, loops, trainer_opts):
         r"""private implementation of `StackedAutoencoder.pretrain()`"""
-        tnet = layer_encoder(self.layers[0].W, self.layers[0].b, nlin=self.nlins[0])
+        tnet = layer_encoder(self.layers[0], self.layers[-1], nlin=self.nlins[0])
         tnet.train_loop(auto_trainer(trainer_type, x, self.noisyness, self.corrupt_value, trainer_opts), epochs=loops)
         
-        for i in xrange(1, len(self.layers)):
+        for i in xrange(1, len(self.layers)/2):
             v = self._fprop(x).outs[i-1]
-            tnet = layer_encoder(self.layers[i].W, self.layers[i].b, nlin=self.nlins[i])
+            tnet = layer_encoder(self.layers[i], self.layers[-(i+1)], nlin=self.nlins[i])
             tnet.train_loop(auto_trainer(trainer_type, v, self.noisyness, self.corrupt_value, *trainer_opts), epochs=loops)
     
     def train_loop(self, x, trainer_type=conj, epochs=100, **trainer_opts):
