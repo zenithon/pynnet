@@ -203,6 +203,17 @@ class NNet(AbstractNet):
             self.nlins = (nlins,)*(len(layers)-1)
         self.err = error
 
+    def _init_(self, layers, nlins, err):
+        r"""
+        For use by inheriting classes so that they can have custom stuff in there.
+
+        No type checking is done whatsoever so you have to pass in
+        correct parameters.
+        """
+        self.layers = layers
+        self.nlins = nlins
+        self.err = err
+
     @classmethod
     def virtual(cls, layers, nlins, error):
         r"""
