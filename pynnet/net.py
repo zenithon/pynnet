@@ -234,16 +234,16 @@ class NNet(AbstractNet):
     def _save_(self, file):
         r"""save state to a file"""
         file.write('NN1')
-        pickle.dump(len(self.layers), file)
+        pickle.dump(len(self.layers), file, pickle.HIGHEST_PROTOCOL)
         for l in self.layers:
             self._save_layer(l, file)
-        pickle.dump((self.nlins, self.err), file)
+        pickle.dump((self.nlins, self.err), file, pickle.HIGHEST_PROTOCOL)
         
     def _load_(self, file):
         r"""load state from a file"""
         s = file.read(3)
         if s != 'NN1':
-            raise ValueError('File is not a SimpleNet save')
+            raise ValueError('File is not a NNet save')
         l = pickle.load(file)
         self.layers = [self._load_layer(file) for _ in xrange(l)]
         self.nlins, self.err = pickle.load(file)
