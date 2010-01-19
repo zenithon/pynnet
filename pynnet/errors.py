@@ -1,6 +1,7 @@
 import numpy
+from base import theano
 
-__all__ = ['mse', 'nll','class_error']
+__all__ = ['mse', 'nll', 'class_error']
 
 class Error(object):
     def ___abname(self):
@@ -21,6 +22,35 @@ class Error(object):
         You must return a single value that is the mean of the error
         over all the examples given.
         """
+        raise NotImplementedError
+
+    def th(self, os, y):
+        r"""
+        This function is to implement the same computation as the
+        __call__ above using sympbolics from theano.
+
+        Parameters (the names don't have to be the same):
+        os -- the symbolic variable for the output
+        y -- the symbolic variable for the targets
+
+        You must return a single symbolic variable that would compute
+        the mean of the error over all examples.  You must use only
+        symbolic computations for this method.
+
+        Since theano is an optional requirement, test the thruth of
+        the theano member of base before actually using any theano
+        function.  If you cannot implement the method at all unless
+        theano is imported (which is the common case) protect the
+        method definition by
+        
+        if theano:
+            def th(self, os, y):
+               <bla bla>
+
+        There is no need to implement a corresponding theano version
+        of the gradient since it is automatically computed.
+        """
+
         raise NotImplementedError
 
     def _(self, os, y, C):
@@ -93,6 +123,10 @@ class Mse(Error):
     def __call__(self, os, y):
         return ((os-y)**2).mean()
 
+    if theano:
+        def th(self, os, y):
+            return theano.tensor.mean((os-y)**2)
+
     def _(self, os, y, C):
         r"""
         >>> mse.test()
@@ -137,7 +171,7 @@ nll = Nll()
 class Class_error(Error):
 	name="class_error"
 	
-	def __call__(self,os,y):
-		return numpy.abs((numpy.round(os)-y)).mean()
-		
+	def __call__(self, os, y):
+            return numpy.abs((numpy.round(os)-y)).mean()
+        
 class_error = Class_error()

@@ -14,11 +14,11 @@ class SimpleNet(BaseObject):
     always work.  You should do some sanity checks before trusting
     results.
 
-    If you are not experimenting, you should use the `pynnet.NNet`
-    class which is documented and stable.
+    If you are not tinkering with the implementation, you should use
+    the `pynnet.NNet` class which is documented and stable.
     """
     
-    def __init__(self, ninputs, nhidden, noutputs, hnlin=tanh, onlin=none, error=mse, dtype=numpy.float32):
+    def __init__(self, ninputs, nhidden, noutputs, hnlin=tanh, onlin=none, error=mse, dtype=numpy.float32, use_th=theano):
         r"""
         Parameters:
         ninputs : Dimension of input
@@ -36,24 +36,51 @@ class SimpleNet(BaseObject):
         self.hnlin = hnlin
         self.onlin = onlin
         self.err = error
+        self.use_th = use_th
+
+        if use_th:
+            if dtype == numpy.float32:
+                sx, sy, sW1, sW2 = theano.tensor.fmatrices('x', 'y', 'W1', 'W2')
+                sb1, sb2 = theano.tensor.fvectors('b1', 'b2')
+            elif dtype == numpy.float64:
+                sx, sy, sW1, sW2 = theano.tensor.dmatrices('x', 'y', 'W1', 'W2')
+                sb1, sb2 = theano.tensor.dvectors('b1', 'b2')
+            sha = theano.dot(sx, sW1) + sb1
+            shs = self.hnlin.th(sha)
+            soa = theano.dot(shs, sW2) + sb2
+            sos = self.onlin.th(soa)
+            self._th_eval = theano.function([sx, sW1, sW2, sb1, sb2], sos)
+            serr = self.err.th(sos, sy)
+            self._th_test = theano.function([sx, sy, sW1, sW2, sb1, sb2], serr)
+            sg = theano.tensor.grad(serr, [sW1, sW2, sb1, sb2])
+            self._th_grad = theano.function([sx, sy, sW1, sW2, sb1, sb2], sg)
 
     def _save_(self, file):
-        file.write('SN1')
+        file.write('SN2')
         numpy.save(file, self.W1)
         numpy.save(file, self.b1)
         numpy.save(file, self.W2)
         numpy.save(file, self.b2)
-        pickle.dump((self.hnlin, self.onlin, self.err), file)
+        pickle.dump((self.hnlin, self.onlin, self.err, self.use_th), file, pickle.HIGHEST_PROTOCOL)
+        if self.use_th:
+            pickle.dump((self._th_eval, self._th_test, self._th_grad), file, pickle.HIGHEST_PROTOCOL)
         
     def _load_(self, file):
         s = file.read(3)
-        if s != 'SN1':
+        if s == 'SN1' or s == 'SN2':
+            self.W1 = numpy.load(file)
+            self.b1 = numpy.load(file)
+            self.W2 = numpy.load(file)
+            self.b2 = numpy.load(file)
+            if s == 'SN1':
+                self.hnlin, self.onlin, self.err = pickle.load(file)
+                self.use_th = False
+            else:
+                self.hnlin, self.onlin, self.err, self.use_th = pickle.load(file)
+                if self.use_th:
+                    self._th_eval, self._th_test, self._th_grad = pickle.load(file)
+        else:
             raise ValueError('Wrong fromat for SimpleNet in file')
-        self.W1 = numpy.load(file)
-        self.b1 = numpy.load(file)
-        self.W2 = numpy.load(file)
-        self.b2 = numpy.load(file)
-        self.hnlin, self.onlin, self.err = pickle.load(file)
 
     def fprop(self, x):
         x = numpy.atleast_2d(x)
@@ -66,28 +93,29 @@ class SimpleNet(BaseObject):
         hs = self.hnlin(ha)
         oa = numpy.dot(hs, self.W2) + self.b2
         os = self.onlin(oa)
-
+        
         return ha, hs, oa, os
-
+    
     def test(self, x, y):
-	"""
-	test(self, x, y)
-	x=inputs
-	y=targets
-	"""
         x = numpy.atleast_2d(x)
         y = numpy.atleast_2d(y)
         return self._test(x, y)
 
     def _test(self, x, y):
-        return self.err(self._eval(x), y)
+        if self.use_th:
+            return self._th_test(x, y, self.W1, self.W2, self.b1, self.b2)
+        else:
+            return self.err(self._eval(x), y)
 
     def eval(self, x):
         x = numpy.atleast_2d(x)
         return self._eval(x)
 
     def _eval(self, x):
-        return self._fprop(x)[3]
+        if self.use_th:
+            return self._th_eval(x, self.W1, self.W2, self.b1, self.b2)
+        else:
+            return self._fprop(x)[3]
 
     def grad(self, x, y, lmbd):
         x = numpy.atleast_2d(x)
@@ -95,21 +123,24 @@ class SimpleNet(BaseObject):
         return self._grad(x, y, lmbd)
 
     def _grad(self, x, y, lmbd):
-        ha, hs, oa, os = self._fprop(x)
-            
         C = dict()
         
-        C['os'] = self.err._(os, y, self.err(os, y))
-        C['oa'] = C['os'] * self.onlin._(oa, os)
-        C['hs'] = numpy.dot(self.W2, C['oa'].T).T
-        C['ha'] = C['hs'] * self.hnlin._(ha, hs)
-        
-        C['W2'] = numpy.dot(hs.T, C['oa']) + 2.0 * lmbd * self.W2
-        C['b2'] = C['oa'].sum(axis=0)
-        C['W1'] = numpy.dot(x.T, C['ha']) + 2.0 * lmbd * self.W1
-        C['b1'] = C['ha'].reshape((x.shape[0], -1), order='F').sum(axis=0)
+        if self.use_th:
+            C['W1'], C['W2'], C['b1'], C['b2'] = self._th_grad(x, y, self.W1, self.W2, self.b1, self.b2)
+        else:
+            ha, hs, oa, os = self._fprop(x)
+            
+            C['os'] = self.err._(os, y, self.err(os, y))
+            C['oa'] = C['os'] * self.onlin._(oa, os)
+            C['hs'] = numpy.dot(self.W2, C['oa'].T).T
+            C['ha'] = C['hs'] * self.hnlin._(ha, hs)
+            
+            C['W2'] = numpy.dot(hs.T, C['oa']) + 2.0 * lmbd * self.W2
+            C['b2'] = C['oa'].sum(axis=0)
+            C['W1'] = numpy.dot(x.T, C['ha']) + 2.0 * lmbd * self.W1
+            C['b1'] = C['ha'].reshape((x.shape[0], -1), order='F').sum(axis=0)
 
-        return [C['W1'], C['W2']], [C['b1'], C['b2']]
+        return [layer(C['W1'], C['b1']), layer(C['W2'], C['b2'])]
 
     def _estim_grad(self, x, y, eps):
         Ge = dict()
@@ -173,11 +204,11 @@ class SimpleNet(BaseObject):
         else:
             raise ValueError("Wrong gradients detected")
 
-    def _apply_dir(self, GWs, Gbs, alpha=1.0):
-        self.W1 += alpha*GWs[0]
-        self.b1 += alpha*Gbs[0]
-        self.W2 += alpha*GWs[1]
-        self.b2 += alpha*Gbs[1]
+    def _apply_dir(self, G, alpha=1.0):
+        self.W1 += alpha*G[0].W
+        self.b1 += alpha*G[0].b
+        self.W2 += alpha*G[1].W
+        self.b2 += alpha*G[1].b
 
     def train_loop(self, trainer, epochs = 100):
 	"""

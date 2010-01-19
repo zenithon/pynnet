@@ -1,6 +1,11 @@
 from __future__ import with_statement
 
-__all__ = ['BaseObject', 'numpy', 'pickle', 'layer', 'propres']
+__all__ = ['BaseObject', 'theano', 'numpy', 'pickle', 'layer', 'propres']
+
+try:
+    import theano
+except ImportError:
+    theano = None
 
 try:
     import cPickle as pickle

@@ -1,4 +1,5 @@
 import numpy
+from base import theano
 
 __all__ = ['tanh', 'sigmoid', 'none', 'Anynlin']
 
@@ -22,6 +23,29 @@ class Nlin(object):
         """
         raise NotImplementedError
     
+    def th(self, x, y):
+        r"""
+        This is where the symbolic version of your function (using
+        theano) should go.
+
+        Parameters (the names don't have to be the same):
+        x -- the symbolic variable for the inputs
+
+        Since theano is an optional requirement, test the thruth of
+        the theano member of base before actually using any theano
+        function.  If you cannot implement the method at all unless
+        theano is imported (which is the common case) protect the
+        method definition by
+
+        if theano:
+            def th(self, os, y):
+               <bla bla>           
+        
+        There is no need to implement a corresponding theano version
+        of the gradient since it is automatically computed.
+        """
+        raise NotImplementedError
+
     def _(self, x, y):
         r"""
         This is where you compute the dericative of your function.
@@ -34,7 +58,7 @@ class Nlin(object):
         same shape as the input.
         """
         raise NotImplementedError
-
+    
     def test(self):
         x = numpy.random.random((2,10))
         y = self(x)
@@ -64,6 +88,10 @@ class Tanh(Nlin):
     def __call__(self, x):
         return numpy.tanh(x)
 
+    if theano:
+        def th(self, x):
+            return theano.tensor.tanh(x)
+
     def _(self, x, y):
         r"""
         TESTS::
@@ -84,6 +112,8 @@ class Sigmoid(Nlin):
     def __call__(self, x):
         return 1/(1+numpy.e**(-x))
 
+    th = __call__
+
     def _(self, x, y):
         r"""
         TESTS::
@@ -103,6 +133,8 @@ class Lin(Nlin):
 
     def __call__(self, x):
         return x
+
+    th = __call__
 
     def _(self, x, y):
         r"""
@@ -135,6 +167,8 @@ class Anynlin(Nlin):
 
     def __call__(self, x):
         return self.func(x)
+
+    th = __call__
 
     def _(self, x, y):
         return self._estim_grad(x, y, self.eps)
