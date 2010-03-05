@@ -3,16 +3,12 @@ from __future__ import with_statement
 __all__ = ['BaseObject', 'theano', 'numpy', 'pickle', 'layer', 'propres']
 
 try:
-    import theano
-except ImportError:
-    theano = None
-
-try:
     import cPickle as pickle
 except ImportError:
     import pickle
 
 import numpy
+import theano
 
 try:
     from collections import namedtuple
@@ -213,10 +209,16 @@ class BaseObject(object):
         if hasattr(self, '_vitual'):
             raise ValueError('Cannot save a virtual object.  Save the parent instead.')
         
-        with open(fname, 'wb') as f:
-            for C in reversed(type(self).__mro__):
-                if hasattr(C, '_save_'):
-                    C._save_(self, f)
+        if type(fname) is file:
+            self.__save(fname)
+        else:
+            with open(fname, 'wb') as f:
+                self.__save(f)
+
+    def __save(self, f):
+        for C in reversed(type(self).__mro__):
+            if hasattr(C, '_save_'):
+                C._save_(self, f)
     
     @classmethod
     def load(cls, fname):
@@ -235,20 +237,26 @@ class BaseObject(object):
         may go away in the future.
         """
         obj = object.__new__(cls)
-        with open(fname, 'rb') as f:
-            for C in reversed(type(obj).__mro__):
-                if hasattr(C, '_load_'):
-                    C._load_(obj, f)
+        if type(fname) is file:
+            cls.__load(fname, obj)
+        else:
+            with open(fname, 'rb') as f:
+                cls.__load(f, obj)
         return obj
+
+    @classmethod
+    def __load(cls, f, obj):
+        for C in reversed(type(obj).__mro__):
+            if hasattr(C, '_load_'):
+                C._load_(obj, f)
     
     def _load_(self, file):
         r"""
         Load the state from a file.
 
         You should load what you saved in the `_save_()` method.  Be
-        careful not to leave the file pointer at the end of your saved
-        data.  The `numpy` and `pickle` methods do this
-        automatically.
+        careful to leave the file pointer at the end of your saved
+        data.  The `numpy` and `pickle` methods do this automatically.
         """
         str = file.read(5)
         if str != "SOSV1":
