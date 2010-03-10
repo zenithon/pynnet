@@ -36,6 +36,23 @@ class LayerStack(BaseObject):
         self.layers = [c.loadf(file) for c in lclass]
 
     def build(self, input):
+        r"""
+        Builds the layer with input expression `input`.
+        
+        Tests:
+        >>> from pynnet.layers import *
+        >>> import theano
+        >>> x = theano.tensor.tensor3('x')
+        >>> s = LayerStack([ReshapeLayer((None, 1024)),
+        ...                 SimpleLayer(1024, 1024)])
+        >>> s.build(x)
+        >>> s.input
+        x
+        >>> s.params
+        [W, b]
+        >>> theano.pp(s.output)
+        'tanh(((Reshape{2}(x, join(0, Rebroadcast{0}(x.shape[0]), Rebroadcast{0}(1024))) \\dot W) + b))'
+        """
         self.input = input
         for l in self.layers:
             l.build(input)
