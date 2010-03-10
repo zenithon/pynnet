@@ -19,7 +19,7 @@ def early_stopping(train, valid, test, patience=10, patience_increase=2,
     start = time.clock()
     for epoch in xrange(n_epochs):
         cost = train()
-        if verbose = 2:
+        if verbose == 2:
             print "epoch:", epoch, "train cost:", cost
         if epoch % validation_frequency == 0:
             valid_score = valid()
@@ -49,7 +49,7 @@ def bprop(x, y, nnet, alpha=0.01):
     return theano.function([], nnet.cost, 
                            updates=get_updates(nnet, nnet.cost, alpha))
 
-def eval_net(x, y, nnet)
+def eval_net(x, y, nnet):
     sx = theano.shared(value=x)
     sy = theano.shared(value=y)
     nnet.build(sx, sy)
