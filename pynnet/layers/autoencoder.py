@@ -73,10 +73,10 @@ class Autoencoder(NNet):
 
         Tests:
         >>> a.layers
-        [<pynnet.autoencoder.CorruptLayer object at ...>, <pynnet.layers.hidden.Layer object at ...>, <pynnet.layers.hidden.SharedLayer object at ...>]
+        [<pynnet.layers.autoencoder.CorruptLayer object at ...>, <pynnet.layers.hidden.Layer object at ...>, <pynnet.layers.hidden.SharedLayer object at ...>]
         >>> a2 = test_saveload(a)
         >>> a2.layers
-        [<pynnet.autoencoder.CorruptLayer object at ...>, <pynnet.layers.hidden.Layer object at ...>, <pynnet.layers.hidden.SharedLayer object at ...>]
+        [<pynnet.layers.autoencoder.CorruptLayer object at ...>, <pynnet.layers.hidden.Layer object at ...>, <pynnet.layers.hidden.SharedLayer object at ...>]
         >>> theano.pp(a2.layers[-1].W)
         'W.T'
         >>> a2.layers[-1].b
