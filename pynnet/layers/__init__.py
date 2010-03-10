@@ -25,3 +25,4 @@ Some specialized layers may define additional attributes.
 from hidden import *
 from conv import *
 from autoencoder import *
+from utils import *
