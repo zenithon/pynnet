@@ -1,167 +1,96 @@
 from base import *
+from itertools import izip
 
-__all__ = ['bprop', 'steepest', 'conj']
+__all__ = ['early_stopping', 'bprop', 'eval_net', 'minibatch_eval', 
+           'minibatch_epoch']
 
-class Trainer(object):
-    def __init__(self, x, y):
-        self.x = numpy.atleast_2d(x)
-        self.y = numpy.atleast_2d(y)
+def get_updates(nnet, err, alpha):
+    gparams = theano.tensor.grad(nnet.error, nnet.params)
+    return dict((p, p - gp*alpha) for p, gp in izip(nnet.params, gparams))
 
-    def reset(self):
-        r"""
-        Resets the internal state of the trainer.
-
-        Can be used to change the net being trained or to simply
-        restart training anew.
-
-        If you have nothing to do just omit it, the default
-        implementation does just that: nothing.
-        """
-        pass
-
-    def epoch(self, nnet):
-        r"""
-        Computes what is needed to do an epoch.
-
-        Parameters:
-        nnet -- the neural net to train
-
-        See the documentation of `AbstractNet` to see what methods you
-        can call to interact with the network.
-
-        This method is also responsible to apply the changes to the
-        network (usually using the `AbstractNet._apply_dir()` API) to
-        make it evolve toward the computed direction.
-
-        The computations involved should not do more than one pass
-        over all the training data.
-        """
-        raise NotImplementedError
-
-class bprop(Trainer):
-    def __init__(self, x, y, lmbd=0.0, alpha=0.01):
-        r"""
-        Standard back-propagation trainer.
-
-        Parameters:
-        x -- inputs
-        y -- targets
-        lmbd -- (default: 0.0) the weight decay term
-        alpha -- (default: 0.01) the gradient step to take at each iteration
-        """
-        Trainer.__init__(self, x, y)
-        self.alpha = alpha
-        self.lmbd = lmbd
+def early_stopping(train, valid, test, patience=10, patience_increase=2,
+                   improvement_threshold=0.995, validation_frequency=5,
+                   n_epochs=1000, verbose=True, time=True):
+    best_params = None
+    best_valid_score = float('inf')
+    best_iter = 0
+    test_score = 0
     
-    def epoch(self, nnet):
-        G = nnet._grad(self.x, self.y, lmbd=self.lmbd)
-        nnet._apply_dir(G, -self.alpha)
+    start = time.clock()
+    for epoch in xrange(n_epochs):
+        cost = train()
+        if verbose = 2:
+            print "epoch:", epoch, "train cost:", cost
+        if epoch % validation_frequency == 0:
+            valid_score = valid()
+            if verbose:
+                print 'epoch %i, valid error %f'%(epoch, valid_score)
+            if valid_score < best_valid_score:
+                if valid_score < best_valid_score * improvement_treshold:
+                    patience = max(patience, epoch*patience_increase)
+                    best_valid_score = valid_score
+                    
+                    if verbose:
+                        test_score = test()
+                        print 'epoch %i, test error %f'%(epoch, test_score)
 
-def _linesearch(nnet, x, y, G, maxalpha, eps):
-        r"""
-        Bisecting line search.
+        if patience < epoch:
+            break
+    end = time.clock()
+    if verbose:
+        print "Best score obtained at epoch %i, score = %f", epoch, test_score
+    if time:
+        print "Time taken: %f min"%((end-start)/60.,)
 
-        Parameters:
-        nnet -- the net to search on
-        x -- inputs
-        y -- targets
-        G -- gradient of the net for the input target pairs
-        maxalpha -- the farthest point to look for a minimum
-        eps -- the precision of the minimum
+def bprop(x, y, nnet, alpha=0.01):
+    sx = theano.shared(value=x)
+    sy = theano.shared(value=y)
+    nnet.build(sx, sy)
+    return theano.function([], nnet.cost, 
+                           updates=get_updates(nnet, nnet.cost, alpha))
 
-        This function will look for the minimum of the error between 0
-        and -`maxalpha` over the line formed by `nnet` and `G`.
-        """
-        near = 0.0
-        far = maxalpha
-        where = maxalpha
-        near_err = nnet._test(x, y)
-        nnet._apply_dir(G, -where)
-        far_err = nnet._test(x, y)
+def eval_net(x, y, nnet)
+    sx = theano.shared(value=x)
+    sy = theano.shared(value=y)
+    nnet.build(sx, sy)
+    return theano.function([], nnet.cost)
+
+class minibatch_eval(object):
+    def __init__(self, dataiterf, batchsize, nnet, x, y):
+        self.iterf = dataiterf
+        self.batchsize = batchsize
+        nnet.build(x, y)
+        self.cost = theano.function([x, y], nnet.cost)
         
-        while far-near > eps:
-            here = (near+far)/2
-            nnet._apply_dir(G, where-here)
-            where = here
-            here_err = nnet._test(x, y)
-            if here_err < near_err:
-                near = here
-                near_err = here_err
-            else:
-                far = here
-                far_err = here_err
+    def eval(self):
+        return numpy.mean(self.cost(x, y) for x, y in 
+                          self.iterf(self.batchsize))
 
-class steepest(Trainer):
-    def __init__(self, x, y, lmbd=0.0, eps=0.01, maxalpha=20.0):
-        r"""
-        Steepest descent trainer.
+class RepeatIter(object):
+    def __init__(self, iterf, *args, **kwargs):
+        self.iterf = iterf
+        self.args = args
+        self.kwargs = kwargs
+        self.state = self.iterf(*self.args, **self.kwargs)
 
-        Parameters:
-        x -- inputs
-        y -- targets
-        lmbd -- (default: 0.0) the weight decay term
-        eps -- (default: 0.01) the tolerance level for the minimum
-        maxalpha -- (default: 20.0) the farthest along the gradient to look
-        """
-        Trainer.__init__(self, x,y)
-        self.lmbd = lmbd
-        self.eps = eps
-        self.maxalpha = maxalpha
+    def __iter__(self):
+        return self
     
-    def epoch(self, nnet):
-        G = nnet._grad(self.x, self.y, lmbd=self.lmbd)
-        _linesearch(nnet, self.x, self.y, self.d, maxalpha=self.maxalpha, eps=self.eps)
-
-def beta_FR(G, oG, d):
-    return sum((Gl.W**2).sum()+(Gl.b**2).sum() for Gl in G) / \
-        sum((oGl.W**2).sum()+(oGl.b**2).sum() for oGl in oG)
-
-def beta_PR(G, oG, d):
-    return sum((Gl.W*(Gl.W-oGl.W)).sum()+(Gl.b*(Gl.b-oGl.b)).sum() for Gl, oGl in zip(G, oG)) / \
-        sum((oGl.W**2).sum()+(oGl.b**2).sum() for oGl in oG)
-
-def beta_HS(G, oG, d):
-    return sum((Gl.W*(Gl.W-oGl.W)).sum()+(Gl.b*(Gl.b-oGl.b)).sum() for Gl, oGl in zip(G, oG)) / \
-        sum((dl.W*(Gl.W-oGl.W)).sum()+(dl.b*(Gl.b-oGl.b)).sum() for Gl, oGl, dl in zip(G, oG, d))
-
-class conj(Trainer):
-    def __init__(self, x, y, lmbd=0.0, eps=0.01, maxalpha=10, beta_method='PR'):
-        r"""
-        Conjugate gradient trainer.
-
-        Parameters:
-        x -- inputs
-        y -- targets
-        lmbd -- (default: 0.0) the weight decay term
-        eps -- (default: 0.01) the tolerance level for the minimum
-        maxalpha -- (default: 20.0) the farthest along the gradient to look
-        beta_method -- (default: 'PR') one of 'FR', 'PR', and 'HS'.  The formula to use to compute the beta term.
-        """
-        Trainer.__init__(self, x, y)
-        self.lmbd = lmbd
-        self.eps = eps
-        self.maxalpha = maxalpha
-        if beta_method == 'FR':
-            self.beta = beta_FR
-        elif beta_method == 'PR':
-            self.beta = beta_PR
-        elif beta_method == 'HS':
-            self.beta = beta_HS
-        else:
-            raise ValueError('Unknown beta method "%s"'%(beta_method,))
-
-    def reset(self):
-        del self.d
-        del self.G
-
-    def epoch(self, nnet):
-        G = nnet._grad(self.x, self.y, lmbd=self.lmbd)
+    def next(self):
         try:
-            beta = max(self.beta(G, self.G, self.d), 0)
-            d = [layer(Gl.W + beta*dl.W, Gl.b + beta*dl.b) for Gl, dl in zip(G, self.d)]
-            self.G = G
-            self.d = d
-        except AttributeError:
-            self.d = self.G = G
+            return self.state.next()
+        except StopIteration:
+            self.state = self.iterf(*self.args, **self.kwargs)
+            return self.state.next()
+
+class minibatch_epoch(object):
+    def __init__(self, dataiterf, batchsize, nnet, x, y, alpha=0.01):
+        nnet.build(x, y)
+        self.cost = theano.function([x, y], nnet.cost,
+                                    updates=get_updates(nnet, nnet.cost, alpha))
+        self.it = RepeatIterf(dataiterf, batchsize)
         
-        _linesearch(nnet, self.x, self.y, self.d, maxalpha=self.maxalpha, eps=self.eps)
+    def eval(self):
+        x, y = self.it.next()
+        return self.cost(x, y)
+    
