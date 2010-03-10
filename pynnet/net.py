@@ -54,15 +54,17 @@ class NNet(BaseObject):
         self.err, lclass = pload(file)
         self.layers = [c.loadf(file) for c in lclass]
     
-    def build(self, input):
-        r"""
-        Build the network from input `input`
+    def build(self, input, target):
+        r""" 
+        Build the network from input `input`, with cost against
+        `target`.
         
         Tests:
         >>> x = theano.tensor.fmatrix('x')
+        >>> y = theano.tensor.fvector('y')
         >>> n = NNet([Layer(3,2),
         ...           Layer(2,3)])
-        >>> n.build(x)
+        >>> n.build(x, y)
         >>> n.input
         x
         >>> n.params
@@ -70,7 +72,7 @@ class NNet(BaseObject):
         >>> theano.pp(n.output)
         'tanh(((tanh(((x \\dot W) + b)) \\dot W) + b))'
         >>> theano.pp(n.cost)
-        '((sum(((tanh(((tanh(((x \\dot W) + b)) \\dot W) + b)) - x) ** 2)) / ((tanh(((tanh(((x \\dot W) + b)) \\dot W) + b)) - x) ** 2).shape[0]) / ((tanh(((tanh(((x \\dot W) + b)) \\dot W) + b)) - x) ** 2).shape[1])'
+        '((sum(((tanh(((tanh(((x \\dot W) + b)) \\dot W) + b)) - y) ** 2)) / ((tanh(((tanh(((x \\dot W) + b)) \\dot W) + b)) - y) ** 2).shape[0]) / ((tanh(((tanh(((x \\dot W) + b)) \\dot W) + b)) - y) ** 2).shape[1])'
         """
         self.input = input
         for l in self.layers:
@@ -78,4 +80,4 @@ class NNet(BaseObject):
             input = l.output
         self.output = input
         self.params = sum((l.params for l in self.layers), [])
-        self.cost = self.err(self.output, self.input)
+        self.cost = self.err(self.output, target)
