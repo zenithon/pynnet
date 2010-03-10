@@ -1,7 +1,7 @@
 from pynnet.base import *
 from pynnet.nlins import *
 
-__all__ = ['ReshapeLayer', 'ConvLayer', 'MaxPoolLayer']
+__all__ = ['ReshapeLayer', 'ConvLayer', 'SharedConvLayer', 'MaxPoolLayer']
 
 import theano.tensor as T
 from theano.tensor.nnet import conv
@@ -70,10 +70,66 @@ class ReshapeLayer(BaseObject):
         self.output = input.reshape(tuple(nshape))
         self.params = []
 
-class ConvLayer(BaseObject):
+class SharedConvLayer(BaseObject):
+    def __init__(self, filter, b, filter_shape, nlin=none, mode='valid'):
+        r"""
+        Shared version of ConvLayer
+
+        Examples:
+        >>> filter = T.tensor4()
+        >>> b = T.fvector()
+        >>> c = SharedConvLayer(filter, b, (3, 1, 5, 5))
+
+        Tests:
+        >>> c.filter_shape
+        (3, 1, 5, 5)
+        >>> c2 = test_saveload(c)
+        >>> c2.filter_shape
+        (3, 1, 5, 5)
+        """
+        self.nlin = nlin
+        self.mode = mode
+        self.filter_shape = filter_shape
+        self.filter = filter
+        self.b = b
+    
+    def _save_(self, file):
+        file.write('SCL1')
+        psave((self.filter_shape, self.nlin, self.mode), file)
+        
+    def _load_(self, file):
+        c = file.read(4)
+        if c != 'SCL1':
+            raise ValueError('wrong cookie for SharedConvLayer')
+        self.filter_shape, self.nlin, self.mode = pload(file)
+
+    def build(self, input):
+        r"""
+        Builds the layer with input expresstion `input`.
+        
+        Tests:
+        >>> filter = T.tensor4('filter')
+        >>> b = T.fvector('b')
+        >>> c = SharedConvLayer(filter, b, (3, 1, 5, 5))
+        >>> x = T.tensor4('x')
+        >>> c.build(x)
+        >>> c.params
+        []
+        >>> c.input
+        x
+        >>> theano.pp(c.output)
+        "(ConvOp{('imshp', None),('kshp', (5, 5)),('nkern', 3),('bsize', None),('dx', 1),('dy', 1),('out_mode', 'valid'),('unroll_batch', 0),('unroll_kern', 0),('unroll_patch', True),('imshp_logical', None),('kshp_logical', (5, 5)),('kshp_logical_top_aligned', True)}(x, filter) + DimShuffle{0, x, x}(b))"
+        """
+        self.input = input
+        conv_out = conv.conv2d(self.input, self.filter, border_mode=self.mode,
+                               filter_shape=self.filter_shape)
+        self.output = self.nlin(conv_out + self.b.dimshuffle('x', 0, 'x', 'x'))
+        self.params = []
+
+class ConvLayer(SharedConvLayer):
     def __init__(self, filter_size, num_filt, num_in=1, nlin=none,
                  dtype=theano.config.floatX, mode='valid',
-                 rng=numpy.random, filter=None, b=None):
+                 rng=numpy.random):
         r"""
         Layer that performs a convolution over the input.
 
@@ -92,10 +148,6 @@ class ConvLayer(BaseObject):
         The `rng` parameter can be used to specify a specific numpy
         RandomState to use.
         
-        The `filter` and `b` parameters are used if you want to share
-        this layer's parameters with another. (NOTE: You usually don't
-        want to do this)
-
         Examples:
         >>> c = ConvLayer(filter_size=(5,5), num_filt=3)
         >>> c = ConvLayer(filter_size=(12,12), num_filt=7, mode='full')
@@ -104,48 +156,32 @@ class ConvLayer(BaseObject):
         >>> c = ConvLayer((5,5), 3)
         >>> c.filter_shape
         (3, 1, 5, 5)
-
-        >>> import StringIO
-        >>> f = StringIO.StringIO()
-        >>> c.savef(f)
-        >>> f2 = StringIO.StringIO(f.getvalue())
-        >>> f.close()
-        >>> c2 = ConvLayer.loadf(f2)
-        >>> f2.close()
+        
+        >>> c2 = test_saveload(c)
         >>> c2.filter_shape
         (3, 1, 5, 5)
         """
-        self.nlin = nlin
-        self.mode = mode
-        self.filter_shape = (num_filt, num_in)+filter_size
+        filter_shape = (num_filt, num_in)+filter_size
         w_range = 1./numpy.sqrt(numpy.prod(filter_size)*num_filt)
-        if filter is None:
-            filtv = rng.uniform(low=-w_range, high=w_range, 
-                                size=self.filter_shape).astype(dtype)
-            self.filter = theano.shared(value=filtv, name='filter')
-        else:
-            self.filter = filter
-        if b is None:
-            bval = rng.uniform(low=-.5, high=.5,
-                               size=(num_filt,)).astype(dtype)
-            self.b = theano.shared(value=bval, name='b')
-            
-        else:
-            self.b = b
+        filtv = rng.uniform(low=-w_range, high=w_range, 
+                            size=filter_shape).astype(dtype)
+        filter = theano.shared(value=filtv, name='filter')
+        bval = rng.uniform(low=-.5, high=.5,
+                           size=(num_filt,)).astype(dtype)
+        b = theano.shared(value=bval, name='b')
+        SharedConvLayer.__init__(self, filter, b, filter_shape, nlin, mode)
     
     def _save_(self, file):
-        file.write('CL1')
-        psave((self.filter_shape, self.nlin, self.mode), file)
+        file.write('CL2')
         numpy.save(file, self.filter.value)
         numpy.save(file, self.b.value)
         
     def _load_(self, file):
         c = file.read(3)
-        if c != 'CL1':
+        if c != 'CL2':
             raise ValueError('wrong magic for ConvLayer')
-        self.filter_shape, self.nlin, self.mode = pload(file)
-        self.filter = theano.shared(numpy.load(file))
-        self.b = theano.shared(numpy.load(file))
+        self.filter = theano.shared(numpy.load(file), name='filter')
+        self.b = theano.shared(numpy.load(file), name='b')
 
     def build(self, input):
         r"""
@@ -163,10 +199,7 @@ class ConvLayer(BaseObject):
         >>> theano.pp(c.output)
         "tanh((ConvOp{('imshp', None),('kshp', (5, 5)),('nkern', 2),('bsize', None),('dx', 1),('dy', 1),('out_mode', 'valid'),('unroll_batch', 0),('unroll_kern', 0),('unroll_patch', True),('imshp_logical', None),('kshp_logical', (5, 5)),('kshp_logical_top_aligned', True)}(x, filter) + DimShuffle{0, x, x}(b)))"
         """
-        self.input = input
-        conv_out = conv.conv2d(self.input, self.filter, border_mode=self.mode,
-                               filter_shape=self.filter_shape)
-        self.output = self.nlin(conv_out + self.b.dimshuffle('x', 0, 'x', 'x'))
+        SharedConvLayer.build(self, input)
         self.params = [self.b, self.filter]
 
 class MaxPoolLayer(BaseObject):
