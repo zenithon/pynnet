@@ -42,7 +42,7 @@ class NNet(BaseObject):
     def _save_(self, file):
         r"""save state to a file"""
         file.write('NN2')
-        psave((self.layers, [l.__class__ for l in self.layers]), file)
+        psave((self.err, [l.__class__ for l in self.layers]), file)
         for l in self.layers:
             l.savef(file)
     
