@@ -1,7 +1,7 @@
 from pynnet.base import *
 from pynnet.nlins import tanh
 
-__all__ = ['Layer', 'SharedLayer']
+__all__ = ['SimpleLayer', 'SharedLayer']
 
 import theano.tensor as T
 
@@ -61,7 +61,7 @@ class SharedLayer(BaseObject):
         self.output = self.activation(T.dot(self.input, self.W) + self.b)
         self.params = []
 
-class Layer(SharedLayer):
+class SimpleLayer(SharedLayer):
     def __init__(self, n_in, n_out, activation=tanh, rng=numpy.random,
                  dtype=theano.config.floatX):
         r"""
@@ -77,10 +77,10 @@ class Layer(SharedLayer):
                  for initialization
 
         Examples:
-        >>> h = Layer(20, 16)
+        >>> h = SimpleLayer(20, 16)
 
         Tests:
-        >>> h = Layer(2, 1)
+        >>> h = SimpleLayer(2, 1)
         >>> h.W.value.shape
         (2, 1)
         >>> import StringIO
@@ -88,7 +88,7 @@ class Layer(SharedLayer):
         >>> h.savef(f)
         >>> f2 = StringIO.StringIO(f.getvalue())
         >>> f.close()
-        >>> h2 = Layer.loadf(f2)
+        >>> h2 = SimpleLayer.loadf(f2)
         >>> f2.close()
         >>> h2.W.value.shape
         (2, 1)
@@ -110,7 +110,7 @@ class Layer(SharedLayer):
     def _load_(self, file):
         s = file.read(3)
         if s != 'HL2':
-            raise ValueError('wrong cookie for Layer')
+            raise ValueError('wrong cookie for SimpleLayer')
         self.W = theano.shared(value=numpy.load(file), name='W')
         self.b = theano.shared(value=numpy.load(file), name='b')
     
@@ -119,7 +119,7 @@ class Layer(SharedLayer):
         Builds the layer with input expresstion `input`.
 
         Tests:
-        >>> h = Layer(3, 2)
+        >>> h = SimpleLayer(3, 2)
         >>> x = T.fmatrix('x')
         >>> h.build(x)
         >>> h.params

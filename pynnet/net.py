@@ -17,24 +17,24 @@ class NNet(BaseObject):
         
         A xor net
         >>> from pynnet.layers import *
-        >>> n = NNet([Layer(2,2, activation=nlins.tanh),
-        ...           Layer(2,1, activation=nlins.none)])
+        >>> n = NNet([SimpleLayer(2,2, activation=nlins.tanh),
+        ...           SimpleLayer(2,1, activation=nlins.none)])
         
         A net with no hidden layers
-        >>> n = NNet([Layer(5, 2)])
+        >>> n = NNet([SimpleLayer(5, 2)])
         
         A more complex net
-        >>> n = NNet([Layer(20, 50, activation=nlins.tanh),
-        ...           Layer(50, 50, activation=nlins.sigmoid),
-        ...           Layer(50, 10, activation=nlins.sigmoid),
-        ...           Layer(50, 1, activation=nlins.none)], error=nll)
+        >>> n = NNet([SimpleLayer(20, 50, activation=nlins.tanh),
+        ...           SimpleLayer(50, 50, activation=nlins.sigmoid),
+        ...           SimpleLayer(50, 10, activation=nlins.sigmoid),
+        ...           SimpleLayer(50, 1, activation=nlins.none)], error=nll)
         
         TESTS::
-        >>> net = NNet([Layer(2,2, activation=nlins.tanh),
-        ...             Layer(2,1, activation=nlins.none)])
+        >>> net = NNet([SimpleLayer(2,2, activation=nlins.tanh),
+        ...             SimpleLayer(2,1, activation=nlins.none)])
         >>> net2 = test_saveload(net)
         >>> net2.layers
-        [<pynnet.layers.hidden.Layer object at ...>, <pynnet.layers.hidden.Layer object at ...>]
+        [<pynnet.layers.hidden.SimpleLayer object at ...>, <pynnet.layers.hidden.SimpleLayer object at ...>]
         """
         self.layers = layers
         self.err = error
@@ -62,8 +62,8 @@ class NNet(BaseObject):
         Tests:
         >>> x = theano.tensor.fmatrix('x')
         >>> y = theano.tensor.fvector('y')
-        >>> n = NNet([Layer(3,2),
-        ...           Layer(2,3)])
+        >>> n = NNet([SimpleLayer(3,2),
+        ...           SimpleLayer(2,3)])
         >>> n.build(x, y)
         >>> n.input
         x

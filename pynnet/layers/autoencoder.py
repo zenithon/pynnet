@@ -1,5 +1,5 @@
 from pynnet.base import *
-from pynnet.layers import Layer, SharedLayer, ConvLayer, SharedConvLayer
+from pynnet.layers import SimpleLayer, SharedLayer, ConvLayer, SharedConvLayer
 from pynnet.net import NNet
 from pynnet.nlins import tanh
 from pynnet.errors import mse
@@ -73,22 +73,22 @@ class Autoencoder(NNet):
 
         Tests:
         >>> a.layers
-        [<pynnet.layers.autoencoder.CorruptLayer object at ...>, <pynnet.layers.hidden.Layer object at ...>, <pynnet.layers.hidden.SharedLayer object at ...>]
+        [<pynnet.layers.autoencoder.CorruptLayer object at ...>, <pynnet.layers.hidden.SimpleLayer object at ...>, <pynnet.layers.hidden.SharedLayer object at ...>]
         >>> a2 = test_saveload(a)
         >>> a2.layers
-        [<pynnet.layers.autoencoder.CorruptLayer object at ...>, <pynnet.layers.hidden.Layer object at ...>, <pynnet.layers.hidden.SharedLayer object at ...>]
+        [<pynnet.layers.autoencoder.CorruptLayer object at ...>, <pynnet.layers.hidden.SimpleLayer object at ...>, <pynnet.layers.hidden.SharedLayer object at ...>]
         >>> theano.pp(a2.layers[-1].W)
         'W.T'
         >>> a2.layers[-1].b
         b2
         """
         self.tied = tied
-        layer1 = Layer(n_in, n_out, activation=nlin)
+        layer1 = SimpleLayer(n_in, n_out, activation=nlin)
         if self.tied:
             self.b = theano.shared(value=numpy.random.random((n_in,)).astype(dtype), name='b2')
             layer2 = SharedLayer(layer1.W.T, self.b, activation=nlin)
         else:
-            layer2 = Layer(n_out, n_in, activation=nlin)
+            layer2 = SimpleLayer(n_out, n_in, activation=nlin)
         layers = []
         if noisyness != 0.0:
             layers += [CorruptLayer(noisyness)]
