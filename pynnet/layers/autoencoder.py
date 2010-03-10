@@ -170,9 +170,8 @@ class ConvAutoencoder(NNet):
         layer1 = SharedConvLayer(self.layer.filter, self.layer.b, 
                                  self.layer.filter_shape, nlin=nlin,
                                  mode='full')
-        # This is broken
-        layer2 = ConvLayer(filter_size=filter_size, num_filt=num_filt,
-                           nlin=nlin, rng=rng, mode='valid')
+        layer2 = ConvLayer(filter_size=filter_size, num_filt=1, 
+                           num_in=num_filt, nlin=nlin, rng=rng, mode='valid')
         layers = []
         if noisyness != 0.0:
             layers += [CorruptLayer(noisyness)]
