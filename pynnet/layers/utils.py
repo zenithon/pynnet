@@ -42,9 +42,9 @@ class LayerStack(BaseObject):
         Tests:
         >>> from pynnet.layers import *
         >>> import theano
-        >>> x = theano.tensor.tensor3('x')
+        >>> x = theano.tensor.tensor3('x', dtype='float32')
         >>> s = LayerStack([ReshapeLayer((None, 1024)),
-        ...                 SimpleLayer(1024, 1024)])
+        ...                 SimpleLayer(1024, 1024, dtype=numpy.float32)])
         >>> s.build(x)
         >>> s.input
         x
@@ -52,6 +52,12 @@ class LayerStack(BaseObject):
         [W, b]
         >>> theano.pp(s.output)
         'tanh(((Reshape{2}(x, join(0, Rebroadcast{0}(x.shape[0]), Rebroadcast{0}(1024))) \\dot W) + b))'
+        >>> f = theano.function([x], s.output)
+        >>> r = f(numpy.random.random((3, 32, 32)))
+        >>> r.shape
+        (3, 1024)
+        >>> r.dtype
+        dtype('float32')
         """
         self.input = input
         for l in self.layers:

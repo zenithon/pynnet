@@ -1,13 +1,12 @@
 from pynnet.base import *
-from pynnet.nlins import tanh
+from pynnet.nlins import *
 
 __all__ = ['SimpleLayer', 'SharedLayer']
 
 import theano.tensor as T
 
 class SharedLayer(BaseObject):
-    def __init__(self, W, b, activation=tanh, rng=numpy.random,
-                 dtype=theano.config.floatX):
+    def __init__(self, W, b, activation=tanh, rng=numpy.random):
         r"""
         Specialized layer that works with a shared W matrix.
 
@@ -45,8 +44,8 @@ class SharedLayer(BaseObject):
         Builds the layer with input expresstion `input`.
 
         Tests:
-        >>> W = T.fmatrix('W')
-        >>> b = T.fvector('b')
+        >>> W = theano.shared(value=numpy.random.random((3,2)).astype(numpy.float32), name='W')
+        >>> b = theano.shared(value=numpy.random.random((2,)).astype(numpy.float32), name='b')
         >>> h = SharedLayer(W, b)
         >>> x = T.fmatrix('x')
         >>> h.build(x)
@@ -56,6 +55,12 @@ class SharedLayer(BaseObject):
         x
         >>> theano.pp(h.output)
         'tanh(((x \\dot W) + b))'
+        >>> f = theano.function([x], h.output)
+        >>> r = f(numpy.random.random((4, 3)))
+        >>> r.shape
+        (4, 2)
+        >>> r.dtype
+        dtype('float32')
         """
         self.input = input
         self.output = self.activation(T.dot(self.input, self.W) + self.b)
@@ -99,8 +104,7 @@ class SimpleLayer(SharedLayer):
         W = theano.shared(value=W_values, name='W')
         b_values = numpy.zeros((n_out,), dtype=dtype)
         b = theano.shared(value=b_values, name='b')
-        SharedLayer.__init__(self, W, b, activation=activation, 
-                             rng=rng, dtype=dtype)
+        SharedLayer.__init__(self, W, b, activation=activation, rng=rng)
     
     def _save_(self, file):
         file.write('HL2')
@@ -119,7 +123,7 @@ class SimpleLayer(SharedLayer):
         Builds the layer with input expresstion `input`.
 
         Tests:
-        >>> h = SimpleLayer(3, 2)
+        >>> h = SimpleLayer(3, 2, dtype=numpy.float32)
         >>> x = T.fmatrix('x')
         >>> h.build(x)
         >>> h.params
@@ -128,6 +132,12 @@ class SimpleLayer(SharedLayer):
         x
         >>> theano.pp(h.output)
         'tanh(((x \\dot W) + b))'
+        >>> f = theano.function([x], h.output)
+        >>> r = f(numpy.random.random((4, 3)))
+        >>> r.dtype
+        dtype('float32')
+        >>> r.shape
+        (4, 2)
         """
         SharedLayer.build(self, input)
         self.params += [self.W, self.b]

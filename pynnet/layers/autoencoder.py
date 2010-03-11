@@ -51,6 +51,12 @@ class CorruptLayer(BaseObject):
         x
         >>> theano.pp(c.output)
         '(x * RandomFunction{binomial}(<RandomStateType>, x.shape, 1, 0.8))'
+        >>> f = theano.function([x], c.output)
+        >>> r = f(numpy.random.random((10, 12)))
+        >>> r.shape
+        (10, 12)
+        >>> r.dtype
+        dtype('float32')
         """
         self.input = input
         idx = self.theano_rng.binomial(size=input.shape, n=1, 
@@ -83,17 +89,17 @@ class Autoencoder(NNet):
         b2
         """
         self.tied = tied
-        layer1 = SimpleLayer(n_in, n_out, activation=nlin)
+        layer1 = SimpleLayer(n_in, n_out, activation=nlin, dtype=dtype)
         if self.tied:
             self.b = theano.shared(value=numpy.random.random((n_in,)).astype(dtype), name='b2')
             layer2 = SharedLayer(layer1.W.T, self.b, activation=nlin)
         else:
-            layer2 = SimpleLayer(n_out, n_in, activation=nlin)
+            layer2 = SimpleLayer(n_out, n_in, activation=nlin, dtype=dtype)
         layers = []
         if noisyness != 0.0:
             layers += [CorruptLayer(noisyness)]
         layers += [layer1, layer2]
-        NNet.__init__(self, layers, err)
+        NNet.__init__(self, layers, error=err)
 
     def _save_(self, file):
         file.write('AE2')
@@ -120,7 +126,7 @@ class Autoencoder(NNet):
 
         Tests:
         >>> x = T.fmatrix('x')
-        >>> ae = Autoencoder(10, 8, tied=True)
+        >>> ae = Autoencoder(10, 8, tied=True, dtype=numpy.float32)
         >>> ae.build(x)
         >>> ae.input
         x
@@ -129,8 +135,8 @@ class Autoencoder(NNet):
         >>> theano.pp(ae.output)
         'tanh(((x \\dot W) + b))'
         >>> theano.pp(ae.cost)
-        '((sum(((tanh(((tanh(((x \\dot W) + b)) \\dot W.T) + b2)) - x) ** 2)) / ((tanh(((tanh(((x \\dot W) + b)) \\dot W.T) + b2)) - x) ** 2).shape[0]) / ((tanh(((tanh(((x \\dot W) + b)) \\dot W.T) + b2)) - x) ** 2).shape[1])'
-        >>> ae = Autoencoder(3, 2, tied=False, noisyness=0.3)
+        '((sum(((tanh(((tanh(((x \\dot W) + b)) \\dot W.T) + b2)) - x) ** 2)) / float32(((tanh(((tanh(((x \\dot W) + b)) \\dot W.T) + b2)) - x) ** 2).shape)[0]) / float32(((tanh(((tanh(((x \\dot W) + b)) \\dot W.T) + b2)) - x) ** 2).shape)[1])'
+        >>> ae = Autoencoder(3, 2, tied=False, noisyness=0.3, dtype=numpy.float32)
         >>> ae.build(x)
         >>> ae.input
         x
@@ -139,7 +145,13 @@ class Autoencoder(NNet):
         >>> theano.pp(ae.output)
         'tanh(((x \\dot W) + b))'
         >>> theano.pp(ae.cost)
-        '((sum(((tanh(((tanh((((x * RandomFunction{binomial}(<RandomStateType>, x.shape, 1, 0.7)) \\dot W) + b)) \\dot W) + b)) - x) ** 2)) / ((tanh(((tanh((((x * RandomFunction{binomial}(<RandomStateType>, x.shape, 1, 0.7)) \\dot W) + b)) \\dot W) + b)) - x) ** 2).shape[0]) / ((tanh(((tanh((((x * RandomFunction{binomial}(<RandomStateType>, x.shape, 1, 0.7)) \\dot W) + b)) \\dot W) + b)) - x) ** 2).shape[1])'
+        '((sum(((tanh(((tanh((((x * RandomFunction{binomial}(<RandomStateType>, x.shape, 1, 0.7)) \\dot W) + b)) \\dot W) + b)) - x) ** 2)) / float32(((tanh(((tanh((((x * RandomFunction{binomial}(<RandomStateType>, x.shape, 1, 0.7)) \\dot W) + b)) \\dot W) + b)) - x) ** 2).shape)[0]) / float32(((tanh(((tanh((((x * RandomFunction{binomial}(<RandomStateType>, x.shape, 1, 0.7)) \\dot W) + b)) \\dot W) + b)) - x) ** 2).shape)[1])'
+        >>> f = theano.function([x], [ae.output, ae.cost])
+        >>> r = f(numpy.random.random((4, 3)))
+        >>> r[0].shape
+        (4, 2)
+        >>> r[0].dtype
+        dtype('float32')
         """
         NNet.build(self, input, input)
         self.layers[-2].build(input)
@@ -148,8 +160,8 @@ class Autoencoder(NNet):
             self.params += [self.b]
         
 class ConvAutoencoder(NNet):
-    def __init__(self, filter_size, num_filt, rng=numpy.random,
-                 nlin=tanh, err=mse, noisyness=0.0):
+    def __init__(self, filter_size, num_filt, rng=numpy.random, nlin=tanh,
+                 err=mse, noisyness=0.0, dtype=theano.config.floatX):
         r"""
         Convolutional autoencoder layer.
 
@@ -166,11 +178,11 @@ class ConvAutoencoder(NNet):
         [<pynnet.layers.conv.SharedConvLayer object at ...>, <pynnet.layers.conv.ConvLayer object at ...>]
         """
         self.layer = ConvLayer(filter_size=filter_size, num_filt=num_filt,
-                               nlin=nlin, rng=rng, mode='valid')
+                               nlin=nlin, rng=rng, mode='valid', dtype=dtype)
         layer1 = SharedConvLayer(self.layer.filter, self.layer.b, 
                                  self.layer.filter_shape, nlin=nlin,
                                  mode='full')
-        layer2 = ConvLayer(filter_size=filter_size, num_filt=1, 
+        layer2 = ConvLayer(filter_size=filter_size, num_filt=1, dtype=dtype,
                            num_in=num_filt, nlin=nlin, rng=rng, mode='valid')
         layers = []
         if noisyness != 0.0:
@@ -197,8 +209,8 @@ class ConvAutoencoder(NNet):
         Also builds the cost for pretraining.
 
         Tests:
-        >>> cae = ConvAutoencoder((3,3), 2)
-        >>> x = T.tensor4('x')
+        >>> cae = ConvAutoencoder((3,3), 2, dtype=numpy.float32)
+        >>> x = T.tensor4('x', dtype='float32')
         >>> cae.build(x)
         >>> cae.input
         x
@@ -207,7 +219,13 @@ class ConvAutoencoder(NNet):
         >>> theano.pp(cae.output)
         "tanh((ConvOp{('imshp', None),('kshp', (3, 3)),('nkern', 2),('bsize', None),('dx', 1),('dy', 1),('out_mode', 'valid'),('unroll_batch', 0),('unroll_kern', 0),('unroll_patch', True),('imshp_logical', None),('kshp_logical', (3, 3)),('kshp_logical_top_aligned', True)}(x, filter) + DimShuffle{0, x, x}(b)))"
         >>> theano.pp(cae.cost)
-        "((((sum(((tanh((ConvOp{('imshp', None),('kshp', (3, 3)),('nkern', 1),('bsize', None),('dx', 1),('dy', 1),('out_mode', 'valid'),('unroll_batch', 0),('unroll_kern', 0),('unroll_patch', True),('imshp_logical', None),('kshp_logical', (3, 3)),('kshp_logical_top_aligned', True)}(tanh((ConvOp{('imshp', None),('kshp', (3, 3)),('nkern', 2),('bsize', None),('dx', 1),('dy', 1),('out_mode', 'full'),('unroll_batch', 0),('unroll_kern', 0),('unroll_patch', True),('imshp_logical', None),('kshp_logical', (3, 3)),('kshp_logical_top_aligned', True)}(x, filter) + DimShuffle{0, x, x}(b))), filter) + DimShuffle{0, x, x}(b))) - x) ** 2)) / ((tanh((ConvOp{('imshp', None),('kshp', (3, 3)),('nkern', 1),('bsize', None),('dx', 1),('dy', 1),('out_mode', 'valid'),('unroll_batch', 0),('unroll_kern', 0),('unroll_patch', True),('imshp_logical', None),('kshp_logical', (3, 3)),('kshp_logical_top_aligned', True)}(tanh((ConvOp{('imshp', None),('kshp', (3, 3)),('nkern', 2),('bsize', None),('dx', 1),('dy', 1),('out_mode', 'full'),('unroll_batch', 0),('unroll_kern', 0),('unroll_patch', True),('imshp_logical', None),('kshp_logical', (3, 3)),('kshp_logical_top_aligned', True)}(x, filter) + DimShuffle{0, x, x}(b))), filter) + DimShuffle{0, x, x}(b))) - x) ** 2).shape[0]) / ((tanh((ConvOp{('imshp', None),('kshp', (3, 3)),('nkern', 1),('bsize', None),('dx', 1),('dy', 1),('out_mode', 'valid'),('unroll_batch', 0),('unroll_kern', 0),('unroll_patch', True),('imshp_logical', None),('kshp_logical', (3, 3)),('kshp_logical_top_aligned', True)}(tanh((ConvOp{('imshp', None),('kshp', (3, 3)),('nkern', 2),('bsize', None),('dx', 1),('dy', 1),('out_mode', 'full'),('unroll_batch', 0),('unroll_kern', 0),('unroll_patch', True),('imshp_logical', None),('kshp_logical', (3, 3)),('kshp_logical_top_aligned', True)}(x, filter) + DimShuffle{0, x, x}(b))), filter) + DimShuffle{0, x, x}(b))) - x) ** 2).shape[1]) / ((tanh((ConvOp{('imshp', None),('kshp', (3, 3)),('nkern', 1),('bsize', None),('dx', 1),('dy', 1),('out_mode', 'valid'),('unroll_batch', 0),('unroll_kern', 0),('unroll_patch', True),('imshp_logical', None),('kshp_logical', (3, 3)),('kshp_logical_top_aligned', True)}(tanh((ConvOp{('imshp', None),('kshp', (3, 3)),('nkern', 2),('bsize', None),('dx', 1),('dy', 1),('out_mode', 'full'),('unroll_batch', 0),('unroll_kern', 0),('unroll_patch', True),('imshp_logical', None),('kshp_logical', (3, 3)),('kshp_logical_top_aligned', True)}(x, filter) + DimShuffle{0, x, x}(b))), filter) + DimShuffle{0, x, x}(b))) - x) ** 2).shape[2]) / ((tanh((ConvOp{('imshp', None),('kshp', (3, 3)),('nkern', 1),('bsize', None),('dx', 1),('dy', 1),('out_mode', 'valid'),('unroll_batch', 0),('unroll_kern', 0),('unroll_patch', True),('imshp_logical', None),('kshp_logical', (3, 3)),('kshp_logical_top_aligned', True)}(tanh((ConvOp{('imshp', None),('kshp', (3, 3)),('nkern', 2),('bsize', None),('dx', 1),('dy', 1),('out_mode', 'full'),('unroll_batch', 0),('unroll_kern', 0),('unroll_patch', True),('imshp_logical', None),('kshp_logical', (3, 3)),('kshp_logical_top_aligned', True)}(x, filter) + DimShuffle{0, x, x}(b))), filter) + DimShuffle{0, x, x}(b))) - x) ** 2).shape[3])"
+        "((((sum(((tanh((ConvOp{('imshp', None),('kshp', (3, 3)),('nkern', 1),('bsize', None),('dx', 1),('dy', 1),('out_mode', 'valid'),('unroll_batch', 0),('unroll_kern', 0),('unroll_patch', True),('imshp_logical', None),('kshp_logical', (3, 3)),('kshp_logical_top_aligned', True)}(tanh((ConvOp{('imshp', None),('kshp', (3, 3)),('nkern', 2),('bsize', None),('dx', 1),('dy', 1),('out_mode', 'full'),('unroll_batch', 0),('unroll_kern', 0),('unroll_patch', True),('imshp_logical', None),('kshp_logical', (3, 3)),('kshp_logical_top_aligned', True)}(x, filter) + DimShuffle{0, x, x}(b))), filter) + DimShuffle{0, x, x}(b))) - x) ** 2)) / float32(((tanh((ConvOp{('imshp', None),('kshp', (3, 3)),('nkern', 1),('bsize', None),('dx', 1),('dy', 1),('out_mode', 'valid'),('unroll_batch', 0),('unroll_kern', 0),('unroll_patch', True),('imshp_logical', None),('kshp_logical', (3, 3)),('kshp_logical_top_aligned', True)}(tanh((ConvOp{('imshp', None),('kshp', (3, 3)),('nkern', 2),('bsize', None),('dx', 1),('dy', 1),('out_mode', 'full'),('unroll_batch', 0),('unroll_kern', 0),('unroll_patch', True),('imshp_logical', None),('kshp_logical', (3, 3)),('kshp_logical_top_aligned', True)}(x, filter) + DimShuffle{0, x, x}(b))), filter) + DimShuffle{0, x, x}(b))) - x) ** 2).shape)[0]) / float32(((tanh((ConvOp{('imshp', None),('kshp', (3, 3)),('nkern', 1),('bsize', None),('dx', 1),('dy', 1),('out_mode', 'valid'),('unroll_batch', 0),('unroll_kern', 0),('unroll_patch', True),('imshp_logical', None),('kshp_logical', (3, 3)),('kshp_logical_top_aligned', True)}(tanh((ConvOp{('imshp', None),('kshp', (3, 3)),('nkern', 2),('bsize', None),('dx', 1),('dy', 1),('out_mode', 'full'),('unroll_batch', 0),('unroll_kern', 0),('unroll_patch', True),('imshp_logical', None),('kshp_logical', (3, 3)),('kshp_logical_top_aligned', True)}(x, filter) + DimShuffle{0, x, x}(b))), filter) + DimShuffle{0, x, x}(b))) - x) ** 2).shape)[1]) / float32(((tanh((ConvOp{('imshp', None),('kshp', (3, 3)),('nkern', 1),('bsize', None),('dx', 1),('dy', 1),('out_mode', 'valid'),('unroll_batch', 0),('unroll_kern', 0),('unroll_patch', True),('imshp_logical', None),('kshp_logical', (3, 3)),('kshp_logical_top_aligned', True)}(tanh((ConvOp{('imshp', None),('kshp', (3, 3)),('nkern', 2),('bsize', None),('dx', 1),('dy', 1),('out_mode', 'full'),('unroll_batch', 0),('unroll_kern', 0),('unroll_patch', True),('imshp_logical', None),('kshp_logical', (3, 3)),('kshp_logical_top_aligned', True)}(x, filter) + DimShuffle{0, x, x}(b))), filter) + DimShuffle{0, x, x}(b))) - x) ** 2).shape)[2]) / float32(((tanh((ConvOp{('imshp', None),('kshp', (3, 3)),('nkern', 1),('bsize', None),('dx', 1),('dy', 1),('out_mode', 'valid'),('unroll_batch', 0),('unroll_kern', 0),('unroll_patch', True),('imshp_logical', None),('kshp_logical', (3, 3)),('kshp_logical_top_aligned', True)}(tanh((ConvOp{('imshp', None),('kshp', (3, 3)),('nkern', 2),('bsize', None),('dx', 1),('dy', 1),('out_mode', 'full'),('unroll_batch', 0),('unroll_kern', 0),('unroll_patch', True),('imshp_logical', None),('kshp_logical', (3, 3)),('kshp_logical_top_aligned', True)}(x, filter) + DimShuffle{0, x, x}(b))), filter) + DimShuffle{0, x, x}(b))) - x) ** 2).shape)[3])"
+        >>> f = theano.function([x], [cae.output, cae.cost])
+        >>> r = f(numpy.random.random((3, 1, 32, 32)))
+        >>> r[0].shape
+        (3, 2, 30, 30)
+        >>> r[0].dtype
+        dtype('float32')
         """
         NNet.build(self, input, input)
         self.layer.build(input)

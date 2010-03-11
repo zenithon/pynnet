@@ -52,7 +52,7 @@ class ReshapeLayer(BaseObject):
         
         Tests:
         >>> r = ReshapeLayer((None, None))
-        >>> x = T.fmatrix('x')
+        >>> x = T.tensor3('x')
         >>> r.build(x)
         >>> r.params
         []
@@ -60,6 +60,11 @@ class ReshapeLayer(BaseObject):
         x
         >>> theano.pp(r.output)
         'Reshape{2}(x, join(0, Rebroadcast{0}(x.shape[0]), Rebroadcast{0}(x.shape[1])))'
+        >>> f = theano.function([x], r.output)
+        >>> mat = numpy.random.random((3, 2, 1))
+        >>> mat2 = f(mat)
+        >>> mat2.shape
+        (3, 2)
         """
         self.input = input
         nshape = list(self.outshape)
@@ -198,6 +203,10 @@ class ConvLayer(SharedConvLayer):
         x
         >>> theano.pp(c.output)
         "tanh((ConvOp{('imshp', None),('kshp', (5, 5)),('nkern', 2),('bsize', None),('dx', 1),('dy', 1),('out_mode', 'valid'),('unroll_batch', 0),('unroll_kern', 0),('unroll_patch', True),('imshp_logical', None),('kshp_logical', (5, 5)),('kshp_logical_top_aligned', True)}(x, filter) + DimShuffle{0, x, x}(b)))"
+        >>> f = theano.function([x], c.output)
+        >>> r = f(numpy.random.random((2, 1, 28, 28)))
+        >>> r.shape
+        (2, 2, 24, 24)
         """
         SharedConvLayer.build(self, input)
         self.params = [self.b, self.filter]
@@ -254,6 +263,10 @@ class MaxPoolLayer(BaseObject):
         x
         >>> theano.pp(m.output)
         'Reshape{2}(DownsampleFactorMax{(1, 2),True}(Reshape{4}(x, join(0, Rebroadcast{0}(Prod(x.shape[:-2])), Rebroadcast{0}([1]), Rebroadcast{0}(x.shape[-2:])))), join(0, Rebroadcast{0}(x.shape[:-2]), Rebroadcast{0}(DownsampleFactorMax{(1, 2),True}(Reshape{4}(x, join(0, Rebroadcast{0}(Prod(x.shape[:-2])), Rebroadcast{0}([1]), Rebroadcast{0}(x.shape[-2:])))).shape[-2:])))'
+        >>> f = theano.function([x], m.output)
+        >>> r = f(numpy.random.random((32, 32)))
+        >>> r.shape
+        (32, 16)
         """
         self.input = input
         self.output = downsample.max_pool2D(input, self.pool_shape,
