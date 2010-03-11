@@ -160,8 +160,9 @@ class Autoencoder(NNet):
             self.params += [self.b]
         
 class ConvAutoencoder(NNet):
-    def __init__(self, filter_size, num_filt, rng=numpy.random, nlin=tanh,
-                 err=mse, noisyness=0.0, dtype=theano.config.floatX):
+    def __init__(self, filter_size, num_filt, num_in=1, rng=numpy.random, 
+                 nlin=tanh, err=mse, noisyness=0.0, 
+                 dtype=theano.config.floatX):
         r"""
         Convolutional autoencoder layer.
 
@@ -178,12 +179,14 @@ class ConvAutoencoder(NNet):
         [<pynnet.layers.conv.SharedConvLayer object at ...>, <pynnet.layers.conv.ConvLayer object at ...>]
         """
         self.layer = ConvLayer(filter_size=filter_size, num_filt=num_filt,
-                               nlin=nlin, rng=rng, mode='valid', dtype=dtype)
+                               num_in=num_in, nlin=nlin, rng=rng, 
+                               mode='valid', dtype=dtype)
         layer1 = SharedConvLayer(self.layer.filter, self.layer.b, 
                                  self.layer.filter_shape, nlin=nlin,
                                  mode='full')
-        layer2 = ConvLayer(filter_size=filter_size, num_filt=1, dtype=dtype,
-                           num_in=num_filt, nlin=nlin, rng=rng, mode='valid')
+        layer2 = ConvLayer(filter_size=filter_size, num_filt=num_in,
+                           dtype=dtype, num_in=num_filt, nlin=nlin, 
+                           rng=rng, mode='valid')
         layers = []
         if noisyness != 0.0:
             layers += [CorruptLayer(noisyness)]
