@@ -2,11 +2,12 @@ from base import *
 from itertools import izip
 
 __all__ = ['early_stopping', 'bprop', 'eval_net', 'minibatch_eval', 
-           'minibatch_epoch']
+           'minibatch_epoch', 'get_updates']
 
-def get_updates(nnet, err, alpha):
-    gparams = theano.tensor.grad(nnet.error, nnet.params)
-    return dict((p, p - gp*alpha) for p, gp in izip(nnet.params, gparams))
+def get_updates(params, err, alpha):
+    a = theano.tensor.TensorConstant(theano.tensor.fscalar, alpha)
+    gparams = theano.tensor.grad(err, params)
+    return dict((p, p - gp*a) for p, gp in izip(params, gparams))
 
 def early_stopping(train, valid, test, patience=10, patience_increase=2,
                    improvement_threshold=0.995, validation_frequency=5,
@@ -47,7 +48,7 @@ def bprop(x, y, nnet, alpha=0.01):
     sy = theano.shared(value=y)
     nnet.build(sx, sy)
     return theano.function([], nnet.cost, 
-                           updates=get_updates(nnet, nnet.cost, alpha))
+                           updates=get_updates(nnet.params, nnet.cost, alpha))
 
 def eval_net(x, y, nnet):
     sx = theano.shared(value=x)
@@ -87,7 +88,8 @@ class minibatch_epoch(object):
     def __init__(self, dataiterf, batchsize, nnet, x, y, alpha=0.01):
         nnet.build(x, y)
         self.cost = theano.function([x, y], nnet.cost,
-                                    updates=get_updates(nnet, nnet.cost, alpha))
+                                    updates=get_updates(nnet.params, 
+                                                        nnet.cost, alpha))
         self.it = RepeatIterf(dataiterf, batchsize)
         
     def eval(self):
