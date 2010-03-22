@@ -59,7 +59,7 @@ class ReshapeLayer(BaseObject):
         >>> r.input
         x
         >>> theano.pp(r.output)
-        'Reshape{2}(x, join(0, Rebroadcast{0}(x.shape[0]), Rebroadcast{0}(x.shape[1])))'
+        'Reshape{2}(x, [x.shape[0], x.shape[1]])'
         >>> f = theano.function([x], r.output)
         >>> mat = numpy.random.random((3, 2, 1))
         >>> mat2 = f(mat)
@@ -76,7 +76,8 @@ class ReshapeLayer(BaseObject):
         self.params = []
 
 class SharedConvLayer(BaseObject):
-    def __init__(self, filter, b, filter_shape, nlin=none, mode='valid'):
+    def __init__(self, filter, b, filter_shape, image_shape=None, 
+                 nlin=none, mode='valid'):
         r"""
         Shared version of ConvLayer
 
@@ -95,18 +96,29 @@ class SharedConvLayer(BaseObject):
         self.nlin = nlin
         self.mode = mode
         self.filter_shape = filter_shape
+        self.image_shape = image_shape
         self.filter = filter
         self.b = b
+
+    @classmethod
+    def getoutshape(cls, filter_shape, image_shape, mode):
+        if mode == 'valid':
+            b = 1
+        else:
+            b = -1
+        return (image_shape[0], filter_shape[0],
+                image_shape[2]-b*filter_shape[2]+b,
+                image_shape[3]-b*filter_shape[3]+b)
     
     def _save_(self, file):
-        file.write('SCL1')
-        psave((self.filter_shape, self.nlin, self.mode), file)
+        file.write('SCL2')
+        psave((self.image_shape, self.filter_shape, self.nlin, self.mode), file)
         
     def _load_(self, file):
         c = file.read(4)
-        if c != 'SCL1':
+        if c != 'SCL2':
             raise ValueError('wrong cookie for SharedConvLayer')
-        self.filter_shape, self.nlin, self.mode = pload(file)
+        self.image_shape, self.filter_shape, self.nlin, self.mode = pload(file)
 
     def build(self, input):
         r"""
@@ -126,15 +138,28 @@ class SharedConvLayer(BaseObject):
         "(ConvOp{('imshp', None),('kshp', (5, 5)),('nkern', 3),('bsize', None),('dx', 1),('dy', 1),('out_mode', 'valid'),('unroll_batch', 0),('unroll_kern', 0),('unroll_patch', True),('imshp_logical', None),('kshp_logical', (5, 5)),('kshp_logical_top_aligned', True)}(x, filter) + DimShuffle{0, x, x}(b))"
         """
         self.input = input
+        if self.image_shape is not None:
+            # These values seem to be the best or close for G5, x86 and x64
+            # will have to check for other type of machines.
+            un_p = False
+            un_b = 4
+            un_k = 4
+        else:
+            un_p = True
+            un_b = 0
+            un_k = 0
         conv_out = conv.conv2d(self.input, self.filter, border_mode=self.mode,
-                               filter_shape=self.filter_shape)
+                               filter_shape=self.filter_shape,
+                               image_shape=self.image_shape,
+                               unroll_patch=un_p, unroll_batch=un_b,
+                               unroll_kern=un_k)
         self.output = self.nlin(conv_out + self.b.dimshuffle('x', 0, 'x', 'x'))
         self.params = []
 
 class ConvLayer(SharedConvLayer):
     def __init__(self, filter_size, num_filt, num_in=1, nlin=none,
                  dtype=theano.config.floatX, mode='valid',
-                 rng=numpy.random):
+                 rng=numpy.random, image_shape=None):
         r"""
         Layer that performs a convolution over the input.
 
@@ -174,7 +199,8 @@ class ConvLayer(SharedConvLayer):
         bval = rng.uniform(low=-.5, high=.5,
                            size=(num_filt,)).astype(dtype)
         b = theano.shared(value=bval, name='b')
-        SharedConvLayer.__init__(self, filter, b, filter_shape, nlin, mode)
+        SharedConvLayer.__init__(self, filter, b, filter_shape, nlin=nlin, 
+                                 mode=mode, image_shape=image_shape)
     
     def _save_(self, file):
         file.write('CL2')

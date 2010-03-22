@@ -42,7 +42,7 @@ class CorruptLayer(BaseObject):
         Builds the layer with input expresstion `input`.
         
         Tests:
-        >>> c = CorruptLayer(0.2)
+        >>> c = CorruptLayer(0.25)
         >>> x = T.fmatrix('x')
         >>> c.build(x)
         >>> c.params
@@ -50,7 +50,7 @@ class CorruptLayer(BaseObject):
         >>> c.input
         x
         >>> theano.pp(c.output)
-        '(x * RandomFunction{binomial}(<RandomStateType>, x.shape, 1, 0.8))'
+        '(x * RandomFunction{binomial}(<RandomStateType>, x.shape, 1, 0.75))'
         >>> f = theano.function([x], c.output)
         >>> r = f(numpy.random.random((10, 12)))
         >>> r.shape
@@ -136,7 +136,7 @@ class Autoencoder(NNet):
         'tanh(((x \\dot W) + b))'
         >>> theano.pp(ae.cost)
         '((sum(((tanh(((tanh(((x \\dot W) + b)) \\dot W.T) + b2)) - x) ** 2)) / float32(((tanh(((tanh(((x \\dot W) + b)) \\dot W.T) + b2)) - x) ** 2).shape)[0]) / float32(((tanh(((tanh(((x \\dot W) + b)) \\dot W.T) + b2)) - x) ** 2).shape)[1])'
-        >>> ae = Autoencoder(3, 2, tied=False, noisyness=0.3, dtype=numpy.float32)
+        >>> ae = Autoencoder(3, 2, tied=False, noisyness=0.25, dtype=numpy.float32)
         >>> ae.build(x)
         >>> ae.input
         x
@@ -145,7 +145,7 @@ class Autoencoder(NNet):
         >>> theano.pp(ae.output)
         'tanh(((x \\dot W) + b))'
         >>> theano.pp(ae.cost)
-        '((sum(((tanh(((tanh((((x * RandomFunction{binomial}(<RandomStateType>, x.shape, 1, 0.7)) \\dot W) + b)) \\dot W) + b)) - x) ** 2)) / float32(((tanh(((tanh((((x * RandomFunction{binomial}(<RandomStateType>, x.shape, 1, 0.7)) \\dot W) + b)) \\dot W) + b)) - x) ** 2).shape)[0]) / float32(((tanh(((tanh((((x * RandomFunction{binomial}(<RandomStateType>, x.shape, 1, 0.7)) \\dot W) + b)) \\dot W) + b)) - x) ** 2).shape)[1])'
+        '((sum(((tanh(((tanh((((x * RandomFunction{binomial}(<RandomStateType>, x.shape, 1, 0.75)) \\dot W) + b)) \\dot W) + b)) - x) ** 2)) / float32(((tanh(((tanh((((x * RandomFunction{binomial}(<RandomStateType>, x.shape, 1, 0.75)) \\dot W) + b)) \\dot W) + b)) - x) ** 2).shape)[0]) / float32(((tanh(((tanh((((x * RandomFunction{binomial}(<RandomStateType>, x.shape, 1, 0.75)) \\dot W) + b)) \\dot W) + b)) - x) ** 2).shape)[1])'
         >>> f = theano.function([x], [ae.output, ae.cost])
         >>> r = f(numpy.random.random((4, 3)))
         >>> r[0].shape
@@ -161,7 +161,7 @@ class Autoencoder(NNet):
         
 class ConvAutoencoder(NNet):
     def __init__(self, filter_size, num_filt, num_in=1, rng=numpy.random, 
-                 nlin=tanh, err=mse, noisyness=0.0, 
+                 nlin=tanh, err=mse, noisyness=0.0, image_shape=None,
                  dtype=theano.config.floatX):
         r"""
         Convolutional autoencoder layer.
@@ -180,13 +180,19 @@ class ConvAutoencoder(NNet):
         """
         self.layer = ConvLayer(filter_size=filter_size, num_filt=num_filt,
                                num_in=num_in, nlin=nlin, rng=rng, 
-                               mode='valid', dtype=dtype)
+                               mode='valid', dtype=dtype, 
+                               image_shape=image_shape)
         layer1 = SharedConvLayer(self.layer.filter, self.layer.b, 
                                  self.layer.filter_shape, nlin=nlin,
-                                 mode='full')
+                                 mode='full', image_shape=image_shape)
+        if image_shape is None:
+            img_shp2 = None
+        else:
+            img_shp2 = ConvLayer.getoutshape(self.layer.filter_shape, 
+                                             image_shape, mode='full')
         layer2 = ConvLayer(filter_size=filter_size, num_filt=num_in,
                            dtype=dtype, num_in=num_filt, nlin=nlin, 
-                           rng=rng, mode='valid')
+                           rng=rng, mode='valid', image_shape=img_shp2)
         layers = []
         if noisyness != 0.0:
             layers += [CorruptLayer(noisyness)]
