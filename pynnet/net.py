@@ -72,7 +72,7 @@ class NNet(BaseObject):
         >>> theano.pp(n.output)
         'tanh(((tanh(((x \\dot W) + b)) \\dot W) + b))'
         >>> theano.pp(n.cost)
-        '((sum(((tanh(((tanh(((x \\dot W) + b)) \\dot W) + b)) - y) ** 2)) / ((tanh(((tanh(((x \\dot W) + b)) \\dot W) + b)) - y) ** 2).shape[0]) / ((tanh(((tanh(((x \\dot W) + b)) \\dot W) + b)) - y) ** 2).shape[1])'
+        '((sum(((tanh(((tanh(((x \\dot W) + b)) \\dot W) + b)) - y) ** 2)) / float32(((tanh(((tanh(((x \\dot W) + b)) \\dot W) + b)) - y) ** 2).shape)[0]) / float32(((tanh(((tanh(((x \\dot W) + b)) \\dot W) + b)) - y) ** 2).shape)[1])'
         """
         self.input = input
         for l in self.layers:
