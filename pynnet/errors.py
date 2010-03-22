@@ -15,7 +15,7 @@ all exemples.
 from base import *
 import theano.tensor as T
 
-__all__ = ['mse', 'nll']
+__all__ = ['mse', 'nll', 'class_error']
 
 def nll(os, y):
     r"""
@@ -45,3 +45,12 @@ def mse(os, y):
     Mean square error between `os` and `y`.
     """
     return T.mean((os-y)**2)
+
+def class_error(os, y):
+    r"""
+    Classification error.
+
+    os -- probabilities for each class (per example)
+    y -- integer vector of the correct label
+    """
+    return 1 - T.mean(T.neq(T.argmax(os, 1), y))
