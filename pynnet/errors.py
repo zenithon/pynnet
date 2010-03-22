@@ -53,4 +53,4 @@ def class_error(os, y):
     os -- probabilities for each class (per example)
     y -- integer vector of the correct label
     """
-    return 1 - T.mean(T.neq(T.argmax(os, 1), y))
+    return T.mean(T.neq(T.argmax(os, 1), y))
