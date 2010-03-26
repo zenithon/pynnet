@@ -2,8 +2,14 @@ import theano.tensor as T
 
 __all__ = ['tanh', 'sigmoid', 'softmax', 'none']
 
-from theano.tensor import tanh
-from theano.tensor.nnet import sigmoid, softmax
+def tanh(x):
+    return T.tanh(x)
+
+def sigmoid(x):
+    return T.nnet.sigmoid(x)
+
+def softmax(x):
+    return T.nnet.softmax(x)
 
 def none(x):
     return x
