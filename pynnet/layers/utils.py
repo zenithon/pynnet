@@ -35,7 +35,7 @@ class LayerStack(BaseObject):
         lclass = pload(file)
         self.layers = [c.loadf(file) for c in lclass]
 
-    def build(self, input):
+    def build(self, input, input_shape=None):
         r"""
         Builds the layer with input expression `input`.
         
@@ -45,23 +45,29 @@ class LayerStack(BaseObject):
         >>> x = theano.tensor.tensor3('x', dtype='float32')
         >>> s = LayerStack([ReshapeLayer((None, 1024)),
         ...                 SimpleLayer(1024, 1024, dtype=numpy.float32)])
-        >>> s.build(x)
+        >>> s.build(x, input_shape=(3, 32, 32))
         >>> s.input
         x
         >>> s.params
         [W, b]
+        >>> s.output_shape
+        (3, 1024)
         >>> theano.pp(s.output)
-        'tanh(((Reshape{2}(x, join(0, Rebroadcast{0}(x.shape[0]), Rebroadcast{0}(1024))) \\dot W) + b))'
+        'tanh(((Reshape{2}(x, [   3 1024]) \\dot W) + b))'
         >>> f = theano.function([x], s.output)
         >>> r = f(numpy.random.random((3, 32, 32)))
         >>> r.shape
         (3, 1024)
         >>> r.dtype
         dtype('float32')
+        >>> s.build(x)
+        >>> s.output_shape
         """
         self.input = input
         for l in self.layers:
-            l.build(input)
+            l.build(input, input_shape)
             input = l.output
-        self.output = l.output
+            input_shape = l.output_shape
+        self.output = input
+        self.output_shape = input_shape
         self.params = sum((l.params for l in self.layers), [])

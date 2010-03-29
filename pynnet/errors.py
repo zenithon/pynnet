@@ -15,7 +15,7 @@ all exemples.
 from base import *
 import theano.tensor as T
 
-__all__ = ['mse', 'nll', 'class_error']
+__all__ = ['mse', 'nll', 'class_error', 'cross_entropy']
 
 def nll(os, y):
     r"""
@@ -54,3 +54,12 @@ def class_error(os, y):
     y -- integer vector of the correct label
     """
     return T.mean(T.neq(T.argmax(os, 1), y))
+
+def cross_entropy(os, y):
+    r"""
+    Cross-entropy cost.
+    
+    os -- probabilites for each class (per example)
+    y -- target probabilites (usually 1-hot for each example)
+    """
+    return -T.sum(y*T.log(os) + (1-y)*T.log(1-os), axis=1)

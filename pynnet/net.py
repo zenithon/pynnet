@@ -54,7 +54,7 @@ class NNet(BaseObject):
         self.err, lclass = pload(file)
         self.layers = [c.loadf(file) for c in lclass]
     
-    def build(self, input, target):
+    def build(self, input, target, input_shape=None):
         r""" 
         Build the network from input `input`, with cost against
         `target`.
@@ -62,8 +62,8 @@ class NNet(BaseObject):
         Tests:
         >>> x = theano.tensor.fmatrix('x')
         >>> y = theano.tensor.fvector('y')
-        >>> n = NNet([SimpleLayer(3,2),
-        ...           SimpleLayer(2,3)])
+        >>> n = NNet([SimpleLayer(3,2, dtype=numpy.float32),
+        ...           SimpleLayer(2,3, dtype=numpy.float32)])
         >>> n.build(x, y)
         >>> n.input
         x
@@ -76,8 +76,10 @@ class NNet(BaseObject):
         """
         self.input = input
         for l in self.layers:
-            l.build(input)
+            l.build(input, input_shape)
             input = l.output
+            input_shape = l.output_shape
         self.output = input
+        self.output_shape = input_shape
         self.params = sum((l.params for l in self.layers), [])
         self.cost = self.err(self.output, target)

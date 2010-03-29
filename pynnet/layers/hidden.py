@@ -37,9 +37,9 @@ class SharedLayer(BaseObject):
         s = file.read(3)
         if s != 'SL1':
             raise ValueError('wrong cookie for SharedLayer')
-        self.activation= pload(file)
+        self.activation = pload(file)
     
-    def build(self, input):
+    def build(self, input, input_shape=None):
         r"""
         Builds the layer with input expresstion `input`.
 
@@ -48,11 +48,13 @@ class SharedLayer(BaseObject):
         >>> b = theano.shared(value=numpy.random.random((2,)).astype(numpy.float32), name='b')
         >>> h = SharedLayer(W, b)
         >>> x = T.fmatrix('x')
-        >>> h.build(x)
+	>>> h.build(x, input_shape=(4, 3))
         >>> h.params
         []
         >>> h.input
         x
+	>>> h.output_shape
+	(4, 2)
         >>> theano.pp(h.output)
         'tanh(((x \\dot W) + b))'
         >>> f = theano.function([x], h.output)
@@ -61,7 +63,17 @@ class SharedLayer(BaseObject):
         (4, 2)
         >>> r.dtype
         dtype('float32')
+        >>> h.build(x)
+	>>> h.output_shape
         """
+	if input_shape:
+            if len(input_shape) != 2:
+                raise ValueError('Expecting a 2-dimension input_shape, got %s'%(input_shape,))
+            if input_shape[1] != self.W.value.shape[0]:
+                raise ValueError('Wrong dimensions for matrix multiplication, (%d != %d)'%(input_shape[1], self.W.value.shape[0]))
+            self.output_shape = (input_shape[0], self.W.value.shape[1])
+        else:
+            self.output_shape = None
         self.input = input
         self.output = self.activation(T.dot(self.input, self.W) + self.b)
         self.params = []
@@ -118,18 +130,20 @@ class SimpleLayer(SharedLayer):
         self.W = theano.shared(value=numpy.load(file), name='W')
         self.b = theano.shared(value=numpy.load(file), name='b')
     
-    def build(self, input):
+    def build(self, input, input_shape=None):
         r"""
         Builds the layer with input expresstion `input`.
 
         Tests:
         >>> h = SimpleLayer(3, 2, dtype=numpy.float32)
         >>> x = T.fmatrix('x')
-        >>> h.build(x)
+        >>> h.build(x, input_shape=(4, 3))
         >>> h.params
         [W, b]
         >>> h.input
         x
+        >>> h.output_shape
+        (4, 2)
         >>> theano.pp(h.output)
         'tanh(((x \\dot W) + b))'
         >>> f = theano.function([x], h.output)
@@ -138,6 +152,8 @@ class SimpleLayer(SharedLayer):
         dtype('float32')
         >>> r.shape
         (4, 2)
+        >>> h.build(x)
+        >>> h.output_shape
         """
-        SharedLayer.build(self, input)
+        SharedLayer.build(self, input, input_shape)
         self.params += [self.W, self.b]
