@@ -195,6 +195,8 @@ class ConvAutoencoder(NNet):
         >>> ca2 = test_saveload(ca)
         >>> ca2.layers
         [<pynnet.layers.conv.SharedConvLayer object at ...>, <pynnet.layers.conv.ConvLayer object at ...>]
+        >>> ca2.layers[0].filter.value.shape
+        (3, 1, 5, 5)
         """
         self.layer = ConvLayer(filter_size=filter_size, num_filt=num_filt,
                                num_in=num_in, nlin=nlin, rng=rng, 
@@ -220,8 +222,8 @@ class ConvAutoencoder(NNet):
         if s != 'CAE1':
             raise ValueError('wrong cookie for ConvAutoencoder')
         self.layer = ConvLayer.loadf(file)
-        self.layers[-1].filter = self.layer.filter
-        self.layers[-1].b = self.layer.b
+        self.layers[-2].filter = self.layer.filter
+        self.layers[-2].b = self.layer.b
 
     def build(self, input, input_shape=None):
         r"""
