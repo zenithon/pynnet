@@ -320,13 +320,18 @@ class MaxPoolLayer(BaseObject):
         (32, 16)
         >>> m.build(x)
         >>> m.output_shape
+        >>> m.build(x, (4, 3, 22, 22))
+        >>> m.output_shape
+        (4, 3, 22, 11)
         """
         self.input = input
         self.output = downsample.max_pool2D(input, self.pool_shape,
                                             ignore_border=True)
         if input_shape:
-            self.output_shape = tuple(i/s for i, s in zip(input_shape,
-                                                          self.pool_shape))
+            outsh = list(input_shape)
+            for i in range(-1, -len(self.pool_shape), -1):
+                outsh[i] /= self.pool_shape[i]
+            self.output_shape = tuple(outsh)
         else:
             self.output_shape = None
         self.params = []
