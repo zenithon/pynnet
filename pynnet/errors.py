@@ -62,4 +62,4 @@ def cross_entropy(os, y):
     os -- probabilites for each class (per example)
     y -- target probabilites (usually 1-hot for each example)
     """
-    return -T.sum(y*T.log(os) + (1-y)*T.log(1-os), axis=1)
+    return T.mean(-T.sum(y*T.log(os) + (1-y)*T.log(1-os), axis=1))
