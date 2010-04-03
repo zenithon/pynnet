@@ -17,6 +17,15 @@ if __name__ == '__main__':
         for mod in sys.argv[1:]:
             if mod.endswith('.py'):
                 mod = mod[:-3]
-            test(mod)
+            if mod.endswith('/') or mod.endswith('\\'):
+                mod = mod[:-1]
+            mod = mod.replace('/', '.')
+            mod = mod.replace('\\', '.')
+            __import__(mod)
+            mm = sys.modules[mod]
+            if hasattr(mm, '__path__'):
+                runTests(mm)
+            else:
+                test(mod)
     else:
         runTests(pynnet)
