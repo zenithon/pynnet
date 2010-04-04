@@ -1,4 +1,4 @@
-from pynnet.base import *
+from base import *
 from pynnet.layers import SimpleLayer, SharedLayer, ConvLayer, SharedConvLayer
 from pynnet.net import NNet
 from pynnet.nlins import tanh
@@ -9,8 +9,8 @@ from theano.tensor.shared_randomstreams import RandomStreams
 
 __all__ = ['CorruptLayer', 'Autoencoder', 'ConvAutoencoder']
 
-class CorruptLayer(BaseObject):
-    def __init__(self, noisyness, theano_rng=RandomStreams()):
+class CorruptLayer(BaseLayer):
+    def __init__(self, noisyness, theano_rng=RandomStreams(), name=None):
         r"""
         Layer that corrupts its input.
 
@@ -24,6 +24,7 @@ class CorruptLayer(BaseObject):
         >>> c2.noisyness
         0.25
         """
+        BaseLayer.__init__(self, name)
         self.noisyness = noisyness
         self.theano_rng = theano_rng
 
@@ -75,7 +76,7 @@ class CorruptLayer(BaseObject):
 
 class Autoencoder(NNet):
     def __init__(self, n_in, n_out, tied=False, nlin=tanh, noisyness=0.0, 
-                 err=mse, dtype=theano.config.floatX):
+                 err=mse, dtype=theano.config.floatX, name=None):
         r"""
         Autoencoder layer.
         
@@ -87,10 +88,10 @@ class Autoencoder(NNet):
 
         Tests:
         >>> a.layers
-        [<pynnet.layers.autoencoder.CorruptLayer object at ...>, <pynnet.layers.hidden.SimpleLayer object at ...>, <pynnet.layers.hidden.SharedLayer object at ...>]
+        [CorruptLayer..., SimpleLayer..., SharedLayer...]
         >>> a2 = test_saveload(a)
         >>> a2.layers
-        [<pynnet.layers.autoencoder.CorruptLayer object at ...>, <pynnet.layers.hidden.SimpleLayer object at ...>, <pynnet.layers.hidden.SharedLayer object at ...>]
+        [CorruptLayer..., SimpleLayer..., SharedLayer...]
         >>> theano.pp(a2.layers[-1].W)
         'W.T'
         >>> a2.layers[-1].b
@@ -107,7 +108,7 @@ class Autoencoder(NNet):
         if noisyness != 0.0:
             layers += [CorruptLayer(noisyness)]
         layers += [layer1, layer2]
-        NNet.__init__(self, layers, error=err)
+        NNet.__init__(self, layers, error=err, name=name)
 
     def _save_(self, file):
         file.write('AE2')
@@ -180,7 +181,7 @@ class Autoencoder(NNet):
 class ConvAutoencoder(NNet):
     def __init__(self, filter_size, num_filt, num_in=1, rng=numpy.random, 
                  nlin=tanh, err=mse, noisyness=0.0, 
-                 dtype=theano.config.floatX):
+                 dtype=theano.config.floatX, name=None):
         r"""
         Convolutional autoencoder layer.
 
@@ -191,10 +192,10 @@ class ConvAutoencoder(NNet):
 
         Tests:
         >>> ca.layers
-        [<pynnet.layers.conv.SharedConvLayer object at ...>, <pynnet.layers.conv.ConvLayer object at ...>]
+        [SharedConvLayer..., ConvLayer...]
         >>> ca2 = test_saveload(ca)
         >>> ca2.layers
-        [<pynnet.layers.conv.SharedConvLayer object at ...>, <pynnet.layers.conv.ConvLayer object at ...>]
+        [SharedConvLayer..., ConvLayer...]
         >>> ca2.layers[0].filter.value.shape
         (3, 1, 5, 5)
         """
@@ -211,7 +212,7 @@ class ConvAutoencoder(NNet):
         if noisyness != 0.0:
             layers += [CorruptLayer(noisyness)]
         layers += [layer1, layer2]
-        NNet.__init__(self, layers, err)
+        NNet.__init__(self, layers, error=err, name=name)
 
     def _save_(self, file):
         file.write('CAE1')

@@ -1,9 +1,9 @@
-from pynnet.base import *
+from base import *
 
 __all__ = ['LayerStack']
 
-class LayerStack(BaseObject):
-    def __init__(self, layers):
+class LayerStack(CompositeLayer):
+    def __init__(self, layers, name=None):
         r"""
         Stack of layers that acts as a layer.
 
@@ -15,11 +15,12 @@ class LayerStack(BaseObject):
 
         Tests:
         >>> l.layers
-        [<pynnet.layers.conv.ReshapeLayer object at ...>, <pynnet.layers.conv.ConvLayer object at ...>]
+        [ReshapeLayer..., ConvLayer...]
         >>> ll = test_saveload(l)
         >>> ll.layers
-        [<pynnet.layers.conv.ReshapeLayer object at ...>, <pynnet.layers.conv.ConvLayer object at ...>]
+        [ReshapeLayer..., ConvLayer...]
         """
+        CompositeLayer.__init__(self, name, layers)
         self.layers = layers
 
     def _save_(self, file):

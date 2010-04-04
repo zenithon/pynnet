@@ -27,7 +27,7 @@ construction time.
 
 Some specialized layers may define additional attributes.
 """
-from hidden import *
+from simple import *
 from conv import *
 from autoencoder import *
-from utils import *
+from composite import *

@@ -1,4 +1,4 @@
-from pynnet.base import *
+from base import *
 from pynnet.nlins import *
 
 __all__ = ['ReshapeLayer', 'ConvLayer', 'SharedConvLayer', 'MaxPoolLayer']
@@ -7,8 +7,8 @@ import theano.tensor as T
 from theano.tensor.nnet import conv
 from theano.tensor.signal import downsample
 
-class ReshapeLayer(BaseObject):
-    def __init__(self, new_shape):
+class ReshapeLayer(BaseLayer):
+    def __init__(self, new_shape, name=None):
         r"""
         Layer to reshape the input to the given new shape.
 
@@ -28,6 +28,7 @@ class ReshapeLayer(BaseObject):
         >>> r2.outshape
         (None, 1, 32, 32)
         """
+        BaseLayer.__init__(self, name)
         self.outshape = new_shape
 
     def _save_(self, file):
@@ -79,8 +80,9 @@ class ReshapeLayer(BaseObject):
         self.output = input.reshape(tuple(nshape))
         self.params = []
 
-class SharedConvLayer(BaseObject):
-    def __init__(self, filter, b, filter_shape, nlin=none, mode='valid'):
+class SharedConvLayer(BaseLayer):
+    def __init__(self, filter, b, filter_shape, nlin=none, mode='valid',
+                 name=None):
         r"""
         Shared version of ConvLayer
 
@@ -96,6 +98,7 @@ class SharedConvLayer(BaseObject):
         >>> c2.filter_shape
         (3, 1, 5, 5)
         """
+        BaseLayer.__init__(self, name)
         self.nlin = nlin
         self.mode = mode
         self.filter_shape = filter_shape
@@ -178,7 +181,7 @@ class SharedConvLayer(BaseObject):
 class ConvLayer(SharedConvLayer):
     def __init__(self, filter_size, num_filt, num_in=1, nlin=none,
                  dtype=theano.config.floatX, mode='valid',
-                 rng=numpy.random):
+                 rng=numpy.random, name=None):
         r"""
         Layer that performs a convolution over the input.
 
@@ -219,7 +222,7 @@ class ConvLayer(SharedConvLayer):
                            size=(num_filt,)).astype(dtype)
         b = theano.shared(value=bval, name='b')
         SharedConvLayer.__init__(self, filter, b, filter_shape, nlin=nlin, 
-                                 mode=mode)
+                                 mode=mode, name=name)
     
     def _save_(self, file):
         file.write('CL2')
@@ -260,8 +263,8 @@ class ConvLayer(SharedConvLayer):
         SharedConvLayer.build(self, input, input_shape)
         self.params = [self.b, self.filter]
 
-class MaxPoolLayer(BaseObject):
-    def __init__(self, pool_shape=(2,2)):
+class MaxPoolLayer(BaseLayer):
+    def __init__(self, pool_shape=(2,2), name=None):
         r"""
         MaxPooling layer
         
@@ -276,16 +279,11 @@ class MaxPoolLayer(BaseObject):
         >>> m = MaxPoolLayer((3, 2))
         >>> m.pool_shape
         (3, 2)
-        >>> import StringIO
-        >>> f = StringIO.StringIO()
-        >>> m.savef(f)
-        >>> f2 = StringIO.StringIO(f.getvalue())
-        >>> f.close()
-        >>> m2 = MaxPoolLayer.loadf(f2)
-        >>> f2.close()
+        >>> m2 = test_saveload(m)
         >>> m2.pool_shape
         (3, 2)
         """
+        BaseLayer.__init__(self, name)
         self.pool_shape = pool_shape
 
     def _save_(self, file):

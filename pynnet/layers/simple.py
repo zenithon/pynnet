@@ -1,12 +1,12 @@
-from pynnet.base import *
+from base import *
 from pynnet.nlins import *
 
 __all__ = ['SimpleLayer', 'SharedLayer']
 
 import theano.tensor as T
 
-class SharedLayer(BaseObject):
-    def __init__(self, W, b, activation=tanh, rng=numpy.random):
+class SharedLayer(BaseLayer):
+    def __init__(self, W, b, activation=tanh, rng=numpy.random, name=None):
         r"""
         Specialized layer that works with a shared W matrix.
 
@@ -16,19 +16,16 @@ class SharedLayer(BaseObject):
         >>> h = SharedLayer(W, b)
 
         Tests:
-        >>> h = SharedLayer(W, b)
-        >>> import StringIO
-        >>> f = StringIO.StringIO()
-        >>> h.savef(f)
-        >>> f2 = StringIO.StringIO(f.getvalue())
-        >>> f.close()
-        >>> h2 = SharedLayer.loadf(f2)
-        >>> f2.close()
+        >>> ht = SharedLayer(W, b)
+        >>> ht.name != h.name # this tests BaseLayer auto-naming (a bit)
+        True
+        >>> h2 = test_saveload(ht)
         """
+        BaseLayer.__init__(self, name)
         self.activation = activation
         self.W = W
         self.b = b
-    
+
     def _save_(self, file):
         file.write('SL1')
         psave(self.activation, file)
@@ -80,7 +77,7 @@ class SharedLayer(BaseObject):
 
 class SimpleLayer(SharedLayer):
     def __init__(self, n_in, n_out, activation=tanh, rng=numpy.random,
-                 dtype=theano.config.floatX):
+                 dtype=theano.config.floatX, name=None):
         r"""
         Typical hidden layer of a MLP: units are fully-connected and have
         an activation function. Weight matrix W is of shape (n_in,n_out)
@@ -100,13 +97,7 @@ class SimpleLayer(SharedLayer):
         >>> h = SimpleLayer(2, 1)
         >>> h.W.value.shape
         (2, 1)
-        >>> import StringIO
-        >>> f = StringIO.StringIO()
-        >>> h.savef(f)
-        >>> f2 = StringIO.StringIO(f.getvalue())
-        >>> f.close()
-        >>> h2 = SimpleLayer.loadf(f2)
-        >>> f2.close()
+        >>> h2 = test_saveload(h)
         >>> h2.W.value.shape
         (2, 1)
         """
@@ -116,7 +107,8 @@ class SimpleLayer(SharedLayer):
         W = theano.shared(value=W_values, name='W')
         b_values = numpy.zeros((n_out,), dtype=dtype)
         b = theano.shared(value=b_values, name='b')
-        SharedLayer.__init__(self, W, b, activation=activation, rng=rng)
+        SharedLayer.__init__(self, W, b, activation=activation,
+                             rng=rng, name=name)
     
     def _save_(self, file):
         file.write('HL2')
