@@ -6,20 +6,49 @@ __all__ = ['SimpleLayer', 'SharedLayer']
 import theano.tensor as T
 
 class SharedLayer(BaseLayer):
+    r"""
+    Specialized layer that works with passed-in W and b.
+
+    Examples:
+    >>> W = T.fmatrix()
+    >>> b = T.fvector()
+    >>> h = SharedLayer(W, b)
+
+    >>> W = theano.shared(numpy.random.random((3, 2)))
+    >>> b = theano.shared(numpy.random.random((2,)))
+    >>> h = SharedLayer(W, b, activation=tanh)
+
+    Attributes: 
+
+    `W` -- (theano matrix, read-write) can be any theano expression
+           that gives a matrix of the appropriate size.  The given
+           expression is not automatically treated as a gradient
+           parameter and is not saved with the layer.  It is your
+           responsability to ensure that this happens if you need it.
+    `b` -- (theano vector, read-write) can be any theano expression
+           that gives a vector of the appropriate size.  The same
+           precautions as for `W` apply.
+    `activation` -- (function, read-write) must be a function that
+                    will receive as input a theano expression gives
+                    back a theano expression of the same shape.  Apart
+                    from the shape restriction any computation can be
+                    preformed on the input.  This is saved with the
+                    layer.
+    """
     def __init__(self, W, b, activation=tanh, rng=numpy.random, name=None):
         r"""
-        Specialized layer that works with a shared W matrix.
-
-        Examples:
+        Tests:
         >>> W = T.fmatrix()
         >>> b = T.fvector()
         >>> h = SharedLayer(W, b)
-
-        Tests:
         >>> ht = SharedLayer(W, b)
         >>> ht.name != h.name # this tests BaseLayer auto-naming (a bit)
         True
+        >>> ht.activation
+        <function tanh at ...>
         >>> h2 = test_saveload(ht)
+        >>> h2.activation
+        <function tanh at ...>
         """
         BaseLayer.__init__(self, name)
         self.activation = activation
@@ -76,23 +105,29 @@ class SharedLayer(BaseLayer):
         self.params = []
 
 class SimpleLayer(SharedLayer):
+    r"""
+    Typical hidden layer of a MLP: units are fully-connected and have
+    an activation function. Weight matrix W is of shape (n_in,n_out)
+    and the bias vector b is of shape (n_out,).
+    
+    Examples:
+    >>> h = SimpleLayer(20, 16)
+    >>> h = SimpleLayer(50, 40, activation=sigmoid)
+    >>> h = SimpleLayer(3, 2, dtype=numpy.float32)
+
+    Attributes:
+    `W` -- (shared matrix, read-only) Shared connection weights
+           matrix.
+    `b` -- (shared vector, read-only) Shared bias vector.
+    `activation` -- (function, read-write) must be a function that
+                    will receive as input a theano expression gives
+                    back a theano expression of the same shape.  Apart
+                    from the shape restriction any computation can be
+                    preformed on the input.
+    """
     def __init__(self, n_in, n_out, activation=tanh, rng=numpy.random,
                  dtype=theano.config.floatX, name=None):
         r"""
-        Typical hidden layer of a MLP: units are fully-connected and have
-        an activation function. Weight matrix W is of shape (n_in,n_out)
-        and the bias vector b is of shape (n_out,).
-        
-        Parameters:
-        `n_in` -- (int) dimensionality of input
-        `n_out` -- (int) dimensionality of output
-        `activation` -- (function) function to apply to the output
-        `rng` -- (numpy.random.RandomState) random generator to use
-                 for initialization
-
-        Examples:
-        >>> h = SimpleLayer(20, 16)
-
         Tests:
         >>> h = SimpleLayer(2, 1)
         >>> h.W.value.shape

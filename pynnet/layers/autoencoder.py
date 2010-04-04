@@ -10,33 +10,41 @@ from theano.tensor.shared_randomstreams import RandomStreams
 __all__ = ['CorruptLayer', 'Autoencoder', 'ConvAutoencoder']
 
 class CorruptLayer(BaseLayer):
-    def __init__(self, noisyness, theano_rng=RandomStreams(), name=None):
+    r"""
+    Layer that corrupts its input.
+
+    Examples:
+    >>> c = CorruptLayer(0.25)
+    >>> c = CorruptLayer(0.0)
+
+    Attributes: 
+    `noise` -- (float, read-write) The noise level as a probability of
+               destroying any given input.  Must be kept between 0 and
+               1.
+    """
+    def __init__(self, noise, theano_rng=RandomStreams(), name=None):
         r"""
-        Layer that corrupts its input.
-
-        Examples:
-        >>> c = CorruptLayer(noisyness=0.25)
-
         Tests:
-        >>> c.noisyness
+        >>> c = CorruptLayer(0.25)
+        >>> c.noise
         0.25
         >>> c2 = test_saveload(c)
-        >>> c2.noisyness
+        >>> c2.noise
         0.25
         """
         BaseLayer.__init__(self, name)
-        self.noisyness = noisyness
+        self.noise = noise
         self.theano_rng = theano_rng
 
     def _save_(self, file):
         file.write('CL1')
-        psave((self.noisyness, self.theano_rng), file)
+        psave((self.noise, self.theano_rng), file)
 
     def _load_(self, file):
         c = file.read(3)
         if c != 'CL1':
             raise ValueError('wrong cookie for CorruptLayer')
-        self.noisyness, self.theano_rng = pload(file)
+        self.noise, self.theano_rng = pload(file)
     
     def build(self, input, input_shape=None):
         r"""
@@ -62,31 +70,94 @@ class CorruptLayer(BaseLayer):
         dtype('float32')
         >>> c.build(x)
         >>> c.output_shape
+        >>> c.noise = 0.0
+        >>> c.build(x)
+        >>> theano.pp(c.output)
+        'x'
         """
         self.input = input
         if input_shape:
             idx = self.theano_rng.binomial(size=input_shape, n=1, 
-                                           prob=1-self.noisyness, dtype='int8')
+                                           prob=1-self.noise, dtype='int8')
         else:
             idx = self.theano_rng.binomial(size=input.shape, n=1, 
-                                           prob=1-self.noisyness, dtype='int8')
-        self.output = self.input * idx
+                                           prob=1-self.noise, dtype='int8')
+        if self.noise == 0.0:
+            self.output = self.input
+        else:
+            self.output = self.input * idx
         self.output_shape = input_shape
         self.params = []
 
 class Autoencoder(NNet):
-    def __init__(self, n_in, n_out, tied=False, nlin=tanh, noisyness=0.0, 
+    r"""
+    Autoencoder layer.
+    
+    This layer also acts as a network if you want to do pretraining.
+    
+    Examples:
+    >>> a = Autoencoder(32, 20)
+    >>> a = Autoencoder(20, 16, tied=True, noise=0.2)
+
+    Attributes:
+    `noise` -- (float, read-write) The noise level as a probability of
+               destroying any given input.  This is applied for
+               pretraining only. Must be kept between 0 and 1.
+    `tied` -- (bool, read-only) wether the weights of the encoding and
+              the decoding layer are tied.
+    `W` -- (shared matrix, read-only) The matrix for the encoding
+           layer.
+    `W2` -- (theano expression, read-only) The matrix for the decoding
+            layer.  May either be the transpose of `W` or another
+            shared matrix depending on the `tied` value passed to the
+            constructor.
+    `b` -- (shared vector, read-only) The bias vector for the encoding
+           layer.
+    `b2` -- (shared vector, read-only) The bias vector for the
+            decoding layer.
+    `activation` -- (function, read-write) The activation of the
+                    encoding layer. (See `SimpleLayer` docs for
+                    details)
+    `activation2` -- (function, read-write) The activation of the
+                     decoding layer. (See `SimpleLayer` docs for
+                     details)
+    `err` -- (function, read-write) The error function for the
+             pretraining cost.  See the `NNet` documentation for
+             details.
+    """
+    class noise(prop):
+        def fget(self):
+            return self.layers[0].noise
+        def fset(self, val):
+            self.layers[0].noise = val
+    class W(prop):
+        def fget(self):
+            return self.layers[1].W
+    class b(prop):
+        def fget(self):
+            return self.layers[1].b
+    class W2(prop):
+        def fget(self):
+            return self.layers[2].W
+    class b2(prop):
+        def fget(self):
+            return self.layers[2].b
+    class activation(prop):
+        def fget(self):
+            return self.layers[1].activation
+        def fset(self, val):
+            self.layers[1].activation = val
+    class activation2(prop):
+        def fget(self):
+            return self.layers[2].activation
+        def fset(self, val):
+            self.layers[2].activation = val
+
+    def __init__(self, n_in, n_out, tied=False, nlin=tanh, noise=0.0, 
                  err=mse, dtype=theano.config.floatX, name=None):
         r"""
-        Autoencoder layer.
-        
-        This layer also acts as a network if you want to do pretraining.
-
-        Examples:
-        >>> a = Autoencoder(32, 20)
-        >>> a = Autoencoder(20, 16, tied=True, noisyness=0.2)
-
         Tests:
+        >>> a = Autoencoder(20, 16, tied=True, noise=0.01)
         >>> a.layers
         [CorruptLayer..., SimpleLayer..., SharedLayer...]
         >>> a2 = test_saveload(a)
@@ -100,15 +171,12 @@ class Autoencoder(NNet):
         self.tied = tied
         layer1 = SimpleLayer(n_in, n_out, activation=nlin, dtype=dtype)
         if self.tied:
-            self.b = theano.shared(value=numpy.random.random((n_in,)).astype(dtype), name='b2')
-            layer2 = SharedLayer(layer1.W.T, self.b, activation=nlin)
+            self._b = theano.shared(value=numpy.random.random((n_in,)).astype(dtype), name='b2')
+            layer2 = SharedLayer(layer1.W.T, self._b, activation=nlin)
         else:
             layer2 = SimpleLayer(n_out, n_in, activation=nlin, dtype=dtype)
-        layers = []
-        if noisyness != 0.0:
-            layers += [CorruptLayer(noisyness)]
-        layers += [layer1, layer2]
-        NNet.__init__(self, layers, error=err, name=name)
+        NNet.__init__(self, [CorruptLayer(noise), layer1, layer2], 
+                      error=err, name=name)
 
     def _save_(self, file):
         file.write('AE2')
@@ -121,11 +189,13 @@ class Autoencoder(NNet):
         if s != 'AE2':
             raise ValueError('wrong cookie for Autoencoder')
         self.tied = pload(file)
+        if len(self.layers) == 2:
+            self.layers.insert(0, CorruptLayer(0.0))
 
         if self.tied:
-            self.b = theano.shared(value=numpy.load(file), name='b2')
-            self.layers[-1].W = self.layers[-2].W.T
-            self.layers[-1].b = self.b
+            self._b = theano.shared(value=numpy.load(file), name='b2')
+            self.layers[2].W = self.layers[1].W.T
+            self.layers[2].b = self._b
 
     def build(self, input, input_shape=None):
         r"""
@@ -148,7 +218,7 @@ class Autoencoder(NNet):
         'tanh(((x \\dot W) + b))'
         >>> theano.pp(ae.cost)
         '((sum(((tanh(((tanh(((x \\dot W) + b)) \\dot W.T) + b2)) - x) ** 2)) / float32(((tanh(((tanh(((x \\dot W) + b)) \\dot W.T) + b2)) - x) ** 2).shape)[0]) / float32(((tanh(((tanh(((x \\dot W) + b)) \\dot W.T) + b2)) - x) ** 2).shape)[1])'
-        >>> ae = Autoencoder(3, 2, tied=False, noisyness=0.25, dtype=numpy.float32)
+        >>> ae = Autoencoder(3, 2, tied=False, noise=0.25, dtype=numpy.float32)
         >>> ae.build(x, (4, 3))
         >>> ae.input
         x
@@ -171,31 +241,92 @@ class Autoencoder(NNet):
         """
         NNet.build(self, input, input, input_shape)
         self.pre_params = self.params
-        self.layers[-2].build(input, input_shape)
-        self.output = self.layers[-2].output
-        self.output_shape = self.layers[-2].output_shape
-        self.params = sum((l.params for l in self.layers[:-1]), [])
+        self.layers[1].build(input, input_shape)
+        self.output = self.layers[1].output
+        self.output_shape = self.layers[1].output_shape
+        self.params = self.layers[1].params
         if self.tied:
-            self.pre_params += [self.b]
+            self.pre_params += [self.b2]
 
 class ConvAutoencoder(NNet):
+    r"""
+    Convolutional autoencoder layer.
+    
+    Also acts as a network if you want to do pretraining.
+    
+    Examples:
+    >>> ca = ConvAutoencoder((5,5), 3)
+    >>> ca = ConvAutoencoder((4,3), 8, noise=0.25)
+    >>> ca = ConvAutoencoder((4,4), 4, dtype=numpy.float32)
+
+    Attributes:
+    `noise` -- (float, read-write) The corruption level of the input.
+               Used only in pretraining.
+    `filter` -- (shared tensor4, read-only) The filters used for
+                encoding.
+    `filter_shape` -- (complete shape, read-only) The shape of
+                      `filter`.
+    `b` -- (shared vector, read-only) The bias for each encoding
+           filter.
+    `filter2` -- (shared tensor4, read-only) The filters used for
+                 decoding.
+    `filter2_shape` -- (complete shape, read-only) The shape of
+                       `filter2`.
+    `b2` -- (shared vector, read-only) The bias for each decoding
+            filter.
+    `nlin` -- (function, read-write) The activation of the encoding
+              layer. (See `ConvLayer` docs for details)
+    `nlin2` -- (function, read-write) The activation of the decoding
+               layer. (See `ConvLayer` docs for details)
+    `err` -- (function, read-write) The error function for the
+             pretraining cost.  See the `NNet` documentation for
+             details.
+    """
+    class noise(prop):
+        def fget(self):
+            return self.layers[0].noise
+        def fset(self, val):
+            self.layers[0].noise = val
+    class filter(prop):
+        def fget(self):
+            return self.layer.filter
+    class filter_shape(prop):
+        def fget(self):
+            return self.layer.filter_shape
+    class b(prop):
+        def fget(self):
+            return self.layer.b
+    class filter2(prop):
+        def fget(self):
+            return self.layers[2].filter
+    class filter2_shape(prop):
+        def fget(self):
+            return self.layers[2].filter_shape
+    class b2(prop):
+        def fget(self):
+            return self.layers[2].b
+    class nlin(prop):
+        def fget(self):
+            return self.layer.nlin
+        def fset(self, val):
+            self.layer.nlin = val
+    class nlin2(prop):
+        def fget(self):
+            return self.layers[2].nlin
+        def fset(self, val):
+            self.layers[2].nlin = val
+
     def __init__(self, filter_size, num_filt, num_in=1, rng=numpy.random, 
-                 nlin=tanh, err=mse, noisyness=0.0, 
+                 nlin=tanh, err=mse, noise=0.0, 
                  dtype=theano.config.floatX, name=None):
         r"""
-        Convolutional autoencoder layer.
-
-        Also acts as a network if you want to do pretraining.
-        
-        Examples:
-        >>> ca = ConvAutoencoder((5,5), 3)
-
         Tests:
+        >>> ca = ConvAutoencoder((5,5), 3)
         >>> ca.layers
-        [SharedConvLayer..., ConvLayer...]
+        [CorruptLayer..., SharedConvLayer..., ConvLayer...]
         >>> ca2 = test_saveload(ca)
         >>> ca2.layers
-        [SharedConvLayer..., ConvLayer...]
+        [CorruptLayer..., SharedConvLayer..., ConvLayer...]
         >>> ca2.layers[0].filter.value.shape
         (3, 1, 5, 5)
         """
@@ -208,23 +339,22 @@ class ConvAutoencoder(NNet):
         layer2 = ConvLayer(filter_size=filter_size, num_filt=num_in,
                            dtype=dtype, num_in=num_filt, nlin=nlin, 
                            rng=rng, mode='valid')
-        layers = []
-        if noisyness != 0.0:
-            layers += [CorruptLayer(noisyness)]
-        layers += [layer1, layer2]
-        NNet.__init__(self, layers, error=err, name=name)
-
+        NNet.__init__(self, [CorruptLayer(noisyness), layer1, layer2],
+                      error=err, name=name)
+    
     def _save_(self, file):
         file.write('CAE1')
         self.layer.savef(file)
-
+    
     def _load_(self, file):
         s = file.read(4)
         if s != 'CAE1':
             raise ValueError('wrong cookie for ConvAutoencoder')
         self.layer = ConvLayer.loadf(file)
-        self.layers[-2].filter = self.layer.filter
-        self.layers[-2].b = self.layer.b
+        if len(self.layers) == 2:
+            self.layers.insert(0, CorruptLayer(0.0))
+        self.layers[1].filter = self.layer.filter
+        self.layers[1].b = self.layer.b
 
     def build(self, input, input_shape=None):
         r"""

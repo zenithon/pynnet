@@ -3,17 +3,25 @@ from base import *
 __all__ = ['LayerStack']
 
 class LayerStack(CompositeLayer):
+    r"""
+    Stack of layers that acts as a layer.
+    
+    Examples:
+    >>> from pynnet.layers import *
+    >>> l = LayerStack([ReshapeLayer((None, 1, 32, 32)), 
+    ...                 ConvLayer((5,5), 4)])
+    >>> l2 = LayerStack([SimpleLayer(1024, 1024), l])
+
+    Attributes:
+    `layers` -- (list, read-write) The list of layers in their stack
+                order.
+    """
     def __init__(self, layers, name=None):
         r"""
-        Stack of layers that acts as a layer.
-
-        Examples:
+        Tests:
         >>> from pynnet.layers import *
         >>> l = LayerStack([ReshapeLayer((None, 1, 32, 32)), 
         ...                 ConvLayer((5,5), 4)])
-        >>> l2 = LayerStack([SimpleLayer(1024, 1024), l])
-
-        Tests:
         >>> l.layers
         [ReshapeLayer..., ConvLayer...]
         >>> ll = test_saveload(l)

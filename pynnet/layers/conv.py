@@ -8,18 +8,24 @@ from theano.tensor.nnet import conv
 from theano.tensor.signal import downsample
 
 class ReshapeLayer(BaseLayer):
+    r"""
+    Layer to reshape the input to the given new shape.
+
+    Examples:
+    
+    Will reshape a (N, 1024) matrix to a (N, 1, 32, 32) one 
+    >>> r = ReshapeLayer((None, 1, 32, 32))
+    
+    Will convert to a (1024,) shape matrix
+    >>> r = ReshapeLayer((1024,))
+    
+    Attributes: 
+    `outshape` -- (partial shape, read-write) A partial shape tuple [a
+                  shape with None in the place of the missing
+                  dimensions.]
+    """
     def __init__(self, new_shape, name=None):
         r"""
-        Layer to reshape the input to the given new shape.
-
-        Examples:
-
-        Will reshape a (N, 1024) matrix to a (N, 1, 32, 32) one 
-        >>> r = ReshapeLayer((None, 1, 32, 32))
-
-        Will convert to a (1024,) shape matrix
-        >>> r = ReshapeLayer((1024,))
-        
         Tests:
         >>> r = ReshapeLayer((None, 1, 32, 32))
         >>> r.outshape
@@ -81,17 +87,38 @@ class ReshapeLayer(BaseLayer):
         self.params = []
 
 class SharedConvLayer(BaseLayer):
+    r"""
+    Shared version of ConvLayer
+    
+    Examples:
+    >>> filter = T.tensor4()
+    >>> b = T.fvector()
+    >>> c = SharedConvLayer(filter, b, (3, 1, 5, 5))
+
+    Attributes: 
+    `filter` -- (theano tensor4, read-write) A theano expression
+                giving a 4D tensor representing the filters to apply
+                for this convolution step.  *Not saved.*
+    `filter_shape` -- (complete shape or None, read-write) The shape
+                      of the filter with no missing dimensions.  Must
+                      be kept in sync with the `filter` attribute.
+    `b` -- (theano vector, read-write) A theano expression giving a
+           vector of weights for each filter.  *Not saved.*
+    `mode` -- ('full' or 'valid', read-write) A string representing
+              the convolution output mode.
+    `nlin` -- (function, read-write) must be a function that will
+              receive as input a theano expression gives back a theano
+              expression of the same shape.  Apart from the shape
+              restriction any computation can be preformed on the
+              input.
+    """
     def __init__(self, filter, b, filter_shape, nlin=none, mode='valid',
                  name=None):
         r"""
-        Shared version of ConvLayer
-
-        Examples:
+        Tests:
         >>> filter = T.tensor4()
         >>> b = T.fvector()
         >>> c = SharedConvLayer(filter, b, (3, 1, 5, 5))
-
-        Tests:
         >>> c.filter_shape
         (3, 1, 5, 5)
         >>> c2 = test_saveload(c)
@@ -156,7 +183,7 @@ class SharedConvLayer(BaseLayer):
         >>> c.output_shape
         """
         self.input = input
-        if input_shape:
+        if input_shape and self.filter_shape:
             # These values seem to be the best or close for G5, x86 and x64
             # will have to check for other type of machines.
             un_p = False
@@ -179,31 +206,48 @@ class SharedConvLayer(BaseLayer):
         self.params = []
 
 class ConvLayer(SharedConvLayer):
+    r"""
+    Layer that performs a convolution over the input.
+    
+    The size and number of filters are configurable through the
+    `filter_size` and `num_filt` parameters.  `filter_size` is a
+    2-tuple giving the 2d size of one filter.  `num_filt` is
+    obviously the number of filter to apply.  `nlin` is a
+    nonlinearity to apply to the result of the convolution.
+    
+    You can also specify the mode of the convolution (`mode`
+    parameter), valid options are 'valid' and 'full'.
+    
+    The `num_in` parameter is used to specify the number of input
+    maps (in case you want to stack more than one ConvLayer).
+    
+    The `rng` parameter can be used to specify a specific numpy
+    RandomState to use.
+    
+    Examples:
+    >>> c = ConvLayer(filter_size=(5,5), num_filt=3)
+    >>> c = ConvLayer(filter_size=(12,12), num_filt=7, mode='full')
+
+    Attributes:
+    `filter` -- (shared tensor4, read-only) A theano expression
+                giving a 4D tensor representing the filters to apply
+                for this convolution step.
+    `filter_shape` -- (complete shape, read-only) The shape of the
+                      filter with no missing dimensions.
+    `b` -- (shared vector, read-only) A theano expression giving a
+           vector of weights for each filter.
+    `mode` -- ('full' or 'valid', read-write) A string representing
+              the convolution output mode.
+    `nlin` -- (function, read-write) must be a function that will
+              receive as input a theano expression gives back a theano
+              expression of the same shape.  Apart from the shape
+              restriction any computation can be preformed on the
+              input.
+    """
     def __init__(self, filter_size, num_filt, num_in=1, nlin=none,
                  dtype=theano.config.floatX, mode='valid',
                  rng=numpy.random, name=None):
         r"""
-        Layer that performs a convolution over the input.
-
-        The size and number of filters are configurable through the
-        `filter_size` and `num_filt` parameters.  `filter_size` is a
-        2-tuple giving the 2d size of one filter.  `num_filt` is
-        obviously the number of filter to apply.  `nlin` is a
-        nonlinearity to apply to the result of the convolution.
-
-        You can also specify the mode of the convolution (`mode`
-        parameter), valid options are 'valid' and 'full'.
-        
-        The `num_in` parameter is used to specify the number of input
-        maps (in case you want to stack more than one ConvLayer).
-        
-        The `rng` parameter can be used to specify a specific numpy
-        RandomState to use.
-        
-        Examples:
-        >>> c = ConvLayer(filter_size=(5,5), num_filt=3)
-        >>> c = ConvLayer(filter_size=(12,12), num_filt=7, mode='full')
-
         Tests:
         >>> c = ConvLayer((5,5), 3)
         >>> c.filter_shape
@@ -264,17 +308,22 @@ class ConvLayer(SharedConvLayer):
         self.params = [self.b, self.filter]
 
 class MaxPoolLayer(BaseLayer):
+    r"""
+    MaxPooling layer
+    
+    The matrix inputs (over the last 2 dimensions of the input) are
+    split into windows of size `pool_shape` and the maximum for each
+    window is returned.
+    
+    Examples:
+    >>> m = MaxPoolLayer()
+    >>> m = MaxPoolLayer((3, 4))
+
+    Attributes:
+    `pool_shape` -- (2-tuple, read-write) The size of the windows.
+    """
     def __init__(self, pool_shape=(2,2), name=None):
         r"""
-        MaxPooling layer
-        
-        The image is split into windows of size `pool_shape` and the
-        maximum for each window is returned.
-        
-        Examples:
-        >>> m = MaxPoolLayer()
-        >>> m = MaxPoolLayer((3, 4))
-
         Tests:
         >>> m = MaxPoolLayer((3, 2))
         >>> m.pool_shape

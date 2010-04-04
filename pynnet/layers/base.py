@@ -1,37 +1,47 @@
 from pynnet.base import *
 import pynnet.base
 
-__all__ = ['BaseLayer', 'CompositeLayer']+pynnet.base.__all__
+__all__ = ['BaseLayer', 'CompositeLayer', 'prop']+pynnet.base.__all__
 
-def forward_access(obj, propname, doc=None, allow_del=False):
-    def __get__(self):
-        return getattr(obj, propname)
+class prop_meta(type):
+    r""" 
+    Metaclass to allow easy property specifications.  See doc for
+    `prop`.
+    """
+    def __new__(meta, class_name, bases, new_attrs):
+        if bases == (object,):
+            # The prop class itself
+            return type.__new__(meta, class_name, bases, new_attrs)
+        fget = new_attrs.get('fget')
+        fset = new_attrs.get('fset')
+        fdel = new_attrs.get('fdel')
+        fdoc = new_attrs.get('__doc__')
+        return property(fget, fset, fdel, fdoc)
 
-    def __set__(self, value):
-        setattr(obj, propname, value)
+class prop(object):
+    r"""
+    Allows easy specification of properties without cluttering the class namespace.
 
-    def __del__(self):
-        delattr(obj, propname)
-    if not allow_del:
-        __del__ = None
-
-    return property(__get__, __set__, __del__, doc)
-
-def multi_forward(objs, propname, doc=None, allow_del=False):
-    def __get__(self):
-        return getattr(objs[0], propname)
-
-    def __set__(self, value):
-        for obj in objs:
-            setattr(obj, propname, value)
-
-    def __del__(self):
-        for obj in objs:
-            delattr(obj, propname)
-    if not allow_del:
-        __del__ = None
-
-    return property(__get__, __set__, __del__, doc)
+    Example/test:
+    >>> class Angle(object):
+    ...     def __init__(self, rad):
+    ...         self._rad = rad
+    ...     
+    ...     class rad(prop):
+    ...         def fget(self):
+    ...             return self._rad
+    ...         def fset(self, val):
+    ...             if isinstance(val, Angle):
+    ...                 val = val.rad
+    ...             self._rad = val
+    >>> a = Angle(0.0)
+    >>> a.rad
+    0.0
+    >>> a.rad = 1.5
+    >>> a.rad
+    1.5
+    """
+    __metaclass__ = prop_meta
 
 cdict = dict()
 
@@ -40,10 +50,13 @@ class BaseLayer(BaseObject):
     Convinient base class for layers that sets the required `name`
     attribute in the constructor.
 
-    If you pass it None for `name` then a suitable unique name based
-    on the class name of the object will be generated.  Note that no
-    verification is made that the provided names are unique but, it is
-    assumed so in other parts of the code.
+    If you pass it None for `name` in the constructor then a suitable
+    unique name based on the class name of the object will be
+    generated.  Note that no verification is made that the provided
+    names are unique but, it is assumed so in other parts of the code.
+
+    Attributes:
+    `name` -- (string, read-only) the name of the layer (unique)
     """
     def __init__(self, name):
         r"""
@@ -127,6 +140,9 @@ class CompositeLayer(BaseLayer):
     
     Sets up a dictionnary mapping layer names to their instance that
     can be queried by the user using the `get_layer()` method.
+
+    Attributes:
+    None
     """
     def __init__(self, name, sublayers):
         r"""

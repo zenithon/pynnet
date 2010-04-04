@@ -1,58 +1,67 @@
 from base import *
-
-from errors import *
+from pynnet.layers.composite import LayerStack
 
 __all__ = ['NNet']
 
-class NNet(BaseObject):
-    def __init__(self, layers, error=mse):
+class NNet(LayerStack):
+    r"""
+    Create a new fully-connected neural network with the given parameters.
+    
+    Arguements:
+    layers -- A list of layers.
+    error -- The error function to use.
+    
+    Examples:
+    
+    A xor net
+    >>> from pynnet.layers import *
+    >>> n = NNet([SimpleLayer(2,2, activation=nlins.tanh),
+    ...           SimpleLayer(2,1, activation=nlins.none)],
+    ...          error=errors.mse)
+    
+    A net with no hidden layers
+    >>> n = NNet([SimpleLayer(5, 2)], errors.mse)
+    
+    A more complex net
+    >>> n = NNet([SimpleLayer(20, 50, activation=nlins.tanh),
+    ...           SimpleLayer(50, 50, activation=nlins.sigmoid),
+    ...           SimpleLayer(50, 10, activation=nlins.sigmoid),
+    ...           SimpleLayer(50, 1, activation=nlins.none)],
+    ...          error=errors.nll)
+
+    Attributes:
+    `err` -- (function, read-write) must be a function that will
+             recive as input a theano expression for a matrix and will
+             give back a theano expression for a scalar.  Apart from
+             the shape restriction, any computation may be performed
+             on the input.
+    `layers` -- (list, read-write) The list of layers in their stack
+                order. 
+    """
+    def __init__(self, layers, error, name=None):
         r"""
-        Create a new fully-connected neural network with the given parameters.
-        
-        Arguements:
-        layers -- A list of layers.
-        error -- (default: mse) The error function to use.
-        
-        Examples:
-        
-        A xor net
-        >>> from pynnet.layers import *
-        >>> n = NNet([SimpleLayer(2,2, activation=nlins.tanh),
-        ...           SimpleLayer(2,1, activation=nlins.none)])
-        
-        A net with no hidden layers
-        >>> n = NNet([SimpleLayer(5, 2)])
-        
-        A more complex net
-        >>> n = NNet([SimpleLayer(20, 50, activation=nlins.tanh),
-        ...           SimpleLayer(50, 50, activation=nlins.sigmoid),
-        ...           SimpleLayer(50, 10, activation=nlins.sigmoid),
-        ...           SimpleLayer(50, 1, activation=nlins.none)], error=nll)
-        
-        TESTS::
+        Tests:
         >>> net = NNet([SimpleLayer(2,2, activation=nlins.tanh),
-        ...             SimpleLayer(2,1, activation=nlins.none)])
+        ...             SimpleLayer(2,1, activation=nlins.none)],
+        ...            error=errors.mse)
+        >>> net.layers
+        [SimpleLayer..., SimpleLayer...]
         >>> net2 = test_saveload(net)
         >>> net2.layers
-        [<pynnet.layers.hidden.SimpleLayer object at ...>, <pynnet.layers.hidden.SimpleLayer object at ...>]
+        [SimpleLayer..., SimpleLayer...]
         """
-        self.layers = layers
+        LayerStack.__init__(self, layers, name=name)
         self.err = error
     
     def _save_(self, file):
-        r"""save state to a file"""
-        file.write('NN2')
-        psave((self.err, [l.__class__ for l in self.layers]), file)
-        for l in self.layers:
-            l.savef(file)
+        file.write('NN3')
+        psave(self.err, file)
     
     def _load_(self, file):
-        r"""load state from a file"""
         s = file.read(3)
-        if s != 'NN2':
+        if s != 'NN3':
             raise ValueError('wrong cookie for NNet')
-        self.err, lclass = pload(file)
-        self.layers = [c.loadf(file) for c in lclass]
+        self.err = pload(file)
     
     def build(self, input, target, input_shape=None):
         r""" 
@@ -63,7 +72,8 @@ class NNet(BaseObject):
         >>> x = theano.tensor.fmatrix('x')
         >>> y = theano.tensor.fvector('y')
         >>> n = NNet([SimpleLayer(3,2, dtype=numpy.float32),
-        ...           SimpleLayer(2,3, dtype=numpy.float32)])
+        ...           SimpleLayer(2,3, dtype=numpy.float32)],
+        ...          error=errors.mse)
         >>> n.build(x, y)
         >>> n.input
         x
@@ -74,12 +84,5 @@ class NNet(BaseObject):
         >>> theano.pp(n.cost)
         '((sum(((tanh(((tanh(((x \\dot W) + b)) \\dot W) + b)) - y) ** 2)) / float32(((tanh(((tanh(((x \\dot W) + b)) \\dot W) + b)) - y) ** 2).shape)[0]) / float32(((tanh(((tanh(((x \\dot W) + b)) \\dot W) + b)) - y) ** 2).shape)[1])'
         """
-        self.input = input
-        for l in self.layers:
-            l.build(input, input_shape)
-            input = l.output
-            input_shape = l.output_shape
-        self.output = input
-        self.output_shape = input_shape
-        self.params = sum((l.params for l in self.layers), [])
+        LayerStack.build(self, input, input_shape)
         self.cost = self.err(self.output, target)
