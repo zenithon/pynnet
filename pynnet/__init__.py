@@ -1,5 +1,5 @@
-from net import *
 from layers import *
+from net import *
 from predefs import *
 
 import nlins
