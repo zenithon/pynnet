@@ -20,20 +20,34 @@ class prop_meta(type):
 
 class prop(object):
     r"""
-    Allows easy specification of properties without cluttering the class namespace.
+    Allows easy specification of properties without cluttering the
+    class namespace.
+    
+    The set method is specified with 'fset', the get with 'fget' and
+    the del with 'fdel'.  All are optional.  Any other attributes of
+    the class are ignored and will not be preserved.
 
+    The 'self' argument these methods take refer to the enclosing
+    class of the attribute, not the attribute 'class'.
+    
+    Also the class documentation is taken as the property
+    documentation.
+    
     Example/test:
     >>> class Angle(object):
     ...     def __init__(self, rad):
     ...         self._rad = rad
     ...     
     ...     class rad(prop):
-    ...         def fget(self):
+    ...         r'The angle in radians.'
+    ...         def fget(self): # here self is an 'Angle' object, not 'rad'
     ...             return self._rad
-    ...         def fset(self, val):
+    ...         def fset(self, val): # same here
     ...             if isinstance(val, Angle):
     ...                 val = val.rad
     ...             self._rad = val
+    >>> Angle.rad.__doc__
+    'The angle in radians.'
     >>> a = Angle(0.0)
     >>> a.rad
     0.0
