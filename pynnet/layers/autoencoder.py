@@ -158,14 +158,20 @@ class Autoencoder(NNet):
         r"""
         Tests:
         >>> a = Autoencoder(20, 16, tied=True, noise=0.01)
-        >>> a.layers
-        [CorruptLayer..., SimpleLayer..., SharedLayer...]
+        >>> a.noise
+        0.01
+        >>> a.W.value.shape
+        (20, 16)
+        >>> a.b.value.shape
+        (16,)
+        >>> a.activation
+        <function tanh at ...>
         >>> a2 = test_saveload(a)
-        >>> a2.layers
-        [CorruptLayer..., SimpleLayer..., SharedLayer...]
-        >>> theano.pp(a2.layers[-1].W)
+        >>> a2.noise
+        0.01
+        >>> theano.pp(a2.W2)
         'W.T'
-        >>> a2.layers[-1].b
+        >>> a2.b2
         b2
         """
         self.tied = tied
@@ -322,12 +328,22 @@ class ConvAutoencoder(NNet):
         r"""
         Tests:
         >>> ca = ConvAutoencoder((5,5), 3)
-        >>> ca.layers
-        [CorruptLayer..., SharedConvLayer..., ConvLayer...]
+        >>> ca.noise
+        0.0
+        >>> ca.filter_shape
+        (3, 1, 5, 5)
+        >>> ca.filter.value.shape
+        (3, 1, 5, 5)
+        >>> ca.b.value.shape
+        (3,)
+        >>> ca.filter2_shape
+        (1, 3, 5, 5)
+        >>> ca.b2.value.shape
+        (1,)
+        >>> ca.nlin
+        <function tanh at ...>
         >>> ca2 = test_saveload(ca)
-        >>> ca2.layers
-        [CorruptLayer..., SharedConvLayer..., ConvLayer...]
-        >>> ca2.layers[0].filter.value.shape
+        >>> ca2.filter.value.shape
         (3, 1, 5, 5)
         """
         self.layer = ConvLayer(filter_size=filter_size, num_filt=num_filt,
@@ -339,7 +355,7 @@ class ConvAutoencoder(NNet):
         layer2 = ConvLayer(filter_size=filter_size, num_filt=num_in,
                            dtype=dtype, num_in=num_filt, nlin=nlin, 
                            rng=rng, mode='valid')
-        NNet.__init__(self, [CorruptLayer(noisyness), layer1, layer2],
+        NNet.__init__(self, [CorruptLayer(noise), layer1, layer2],
                       error=err, name=name)
     
     def _save_(self, file):
