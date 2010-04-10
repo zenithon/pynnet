@@ -134,6 +134,16 @@ class SharedConvLayer(BaseLayer):
 
     @classmethod
     def getoutshape(cls, filter_shape, image_shape, mode):
+        r"""
+        Returns the output shape for a convolution of the specified
+        `mode` and arguments.
+
+        Tests:
+        >>> SharedConvLayer.getoutshape((4,1,5,5), (100,1,32,32), 'valid')
+        (100, 4, 28, 28)
+        >>> SharedConvLayer.getoutshape((4,1,5,5), (100,1,32,32), 'full')
+        (100, 4, 36, 36)
+        """
         if mode == 'valid':
             b = 1
         else:

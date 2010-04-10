@@ -9,12 +9,27 @@ except ImportError:
     import pickle
 
 def psave(obj, file):
+    r"""
+    Saves `obj` to `file` (which is a file-like object).
+
+    :notests:
+    """
     pickle.dump(obj, file, pickle.HIGHEST_PROTOCOL)
 
 def pload(file):
+    r"""
+    Loads a save created with `psave`.
+
+    :notests:
+    """
     return pickle.load(file)
 
 def test_saveload(obj):
+    r"""
+    Saves and loads `obj` and returns the loaded copy.
+    
+    :notests:
+    """
     import StringIO
     f = StringIO.StringIO()
     obj.savef(f)

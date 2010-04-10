@@ -6,7 +6,15 @@ __all__ = ['early_stopping', 'bprop', 'eval_net', 'minibatch_eval',
 
 def get_updates(params, err, alpha):
     r"""
-    Returns a dictionary of updates suitable for the theano.function
+    Returns a dictionary of updates suitable for theano.function.
+
+    The updates are what would be done in one step of backprop over
+    parameters `params` with error function `err` and step `alpha`.
+
+    A typical call of this function over a built network looks like
+    this:
+    
+       updts = get_updates(net.params, net.cost, 0.01)
     
     Tests:
     >>> W = theano.shared(numpy.random.random((12, 8)), name='W')
@@ -29,6 +37,15 @@ def get_updates(params, err, alpha):
 def early_stopping(train, valid, test, patience=10, patience_increase=2,
                    improvement_threshold=0.995, validation_frequency=5,
                    n_epochs=1000, verbose=True, time=True):
+    r"""
+    An implementation of the early stopping algorithm.
+
+    If you don't have any specific needs you can use this as-is, but
+    otherwise you can copy this code in your own files and modify it
+    according to whatever you are trying to do.
+
+    :notests:
+    """
     best_params = None
     best_valid_score = float('inf')
     best_iter = 0
@@ -59,57 +76,3 @@ def early_stopping(train, valid, test, patience=10, patience_increase=2,
         print "Best score obtained at epoch %i, score = %f", epoch, test_score
     if time:
         print "Time taken: %f min"%((end-start)/60.,)
-
-def bprop(x, y, nnet, alpha=0.01):
-    sx = theano.shared(value=x)
-    sy = theano.shared(value=y)
-    nnet.build(sx, sy)
-    return theano.function([], nnet.cost, 
-                           updates=get_updates(nnet.params, nnet.cost, alpha))
-
-def eval_net(x, y, nnet):
-    sx = theano.shared(value=x)
-    sy = theano.shared(value=y)
-    nnet.build(sx, sy)
-    return theano.function([], nnet.cost)
-
-class minibatch_eval(object):
-    def __init__(self, dataiterf, batchsize, nnet, x, y):
-        self.iterf = dataiterf
-        self.batchsize = batchsize
-        nnet.build(x, y)
-        self.cost = theano.function([x, y], nnet.cost)
-        
-    def eval(self):
-        return numpy.mean(self.cost(x, y) for x, y in 
-                          self.iterf(self.batchsize))
-
-class RepeatIter(object):
-    def __init__(self, iterf, *args, **kwargs):
-        self.iterf = iterf
-        self.args = args
-        self.kwargs = kwargs
-        self.state = self.iterf(*self.args, **self.kwargs)
-
-    def __iter__(self):
-        return self
-    
-    def next(self):
-        try:
-            return self.state.next()
-        except StopIteration:
-            self.state = self.iterf(*self.args, **self.kwargs)
-            return self.state.next()
-
-class minibatch_epoch(object):
-    def __init__(self, dataiterf, batchsize, nnet, x, y, alpha=0.01):
-        nnet.build(x, y)
-        self.cost = theano.function([x, y], nnet.cost,
-                                    updates=get_updates(nnet.params, 
-                                                        nnet.cost, alpha))
-        self.it = RepeatIterf(dataiterf, batchsize)
-        
-    def eval(self):
-        x, y = self.it.next()
-        return self.cost(x, y)
-    

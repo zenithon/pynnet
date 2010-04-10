@@ -9,6 +9,9 @@ class prop_meta(type):
     `prop`.
     """
     def __new__(meta, class_name, bases, new_attrs):
+        r"""
+        :nodoc:
+        """
         if bases == (object,):
             # The prop class itself
             return type.__new__(meta, class_name, bases, new_attrs)
@@ -161,8 +164,11 @@ class CompositeLayer(BaseLayer):
     def __init__(self, name, sublayers):
         r"""
         Tests:
-        >>> c = CompositeLayer(None, [BaseLayer(None), BaseLayer('zombie')])
-        >>> c.add(BaseLayer(None), [BaseLayer('spam')])
+        >>> c = CompositeLayer(None, [CompositeLayer('a', [BaseLayer('b')]),
+        ...                           BaseLayer('zombie')])
+        >>> c.add(BaseLayer('g'), [BaseLayer('spam')])
+        >>> sorted(c._dict.iterkeys())
+        ['a', 'b', 'g', 'spam', 'zombie']
         >>> all([k == v.name for k,v in c._dict.iteritems()])
         True
         """
