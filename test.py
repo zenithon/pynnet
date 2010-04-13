@@ -27,6 +27,8 @@ def methods_of(obj, mod=None):
     if mod is None:
         raise ValueError('must be called with a module')
     for aname in dir(obj):
+        if aname in ('__abstractmethods__',):
+            continue
         attr = getattr(obj, aname)
         if not hasattr(attr, '__module__') or attr.__module__ != mod.__name__:
             continue
