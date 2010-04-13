@@ -76,15 +76,15 @@ class CorruptLayer(BaseLayer):
         'x'
         """
         self.input = input
-        if input_shape:
-            idx = self.theano_rng.binomial(size=input_shape, n=1, 
-                                           prob=1-self.noise, dtype='int8')
-        else:
-            idx = self.theano_rng.binomial(size=input.shape, n=1, 
-                                           prob=1-self.noise, dtype='int8')
         if self.noise == 0.0:
             self.output = self.input
         else:
+            if input_shape:
+                idx = self.theano_rng.binomial(size=input_shape, n=1, 
+                                               prob=1-self.noise, dtype='int8')
+            else:
+                idx = self.theano_rng.binomial(size=input.shape, n=1, 
+                                               prob=1-self.noise, dtype='int8')
             self.output = self.input * idx
         self.output_shape = input_shape
         self.params = []
