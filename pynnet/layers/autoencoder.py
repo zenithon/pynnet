@@ -188,7 +188,7 @@ class Autoencoder(NNet):
         file.write('AE2')
         psave(self.tied, file)
         if self.tied:
-            numpy.save(file, self.b)
+            numpy.save(file, self._b.value)
 
     def _load_(self, file):
         s = file.read(3)
