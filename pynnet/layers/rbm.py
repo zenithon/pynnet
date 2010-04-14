@@ -83,7 +83,7 @@ class RBMLayer(BaseLayer):
         >>> f = theano.function([x], y)
         """
         pre_sigm, sigm = self._prop(x, W, b)
-        y = RandomStreams().binomial(size=sigm.shape, n=1, prob=sigm,
+        y = RandomStreams().binomial(size=sigm.shape, n=1, p=sigm,
                                    dtype=self.dtype)
         return pre_sigm, sigm, y
 

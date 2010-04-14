@@ -192,13 +192,26 @@ class SharedConvLayer(BaseLayer):
         >>> c.build(x)
         >>> c.output_shape
         """
+        def find_value(sh):
+            if sh % 4 == 0:
+                return 4
+            elif sh % 5 == 0:
+                return 5
+            elif sh % 6 == 0:
+                return 6
+            elif sh % 3 == 0:
+                return 3
+            elif sh % 7 == 0:
+                return 7
+            elif sh % 2 == 0:
+                return 2
+            else:
+                return 0
         self.input = input
         if input_shape and self.filter_shape:
-            # These values seem to be the best or close for G5, x86 and x64
-            # will have to check for other type of machines.
             un_p = False
-            un_b = 4
-            un_k = 4
+            un_b = find_value(input_shape[0])
+            un_k = find_value(self.filter_shape[0])
             self.output_shape = self.getoutshape(self.filter_shape, 
                                                  input_shape,
                                                  self.mode)
@@ -383,7 +396,7 @@ class MaxPoolLayer(BaseLayer):
         (4, 3, 11, 7)
         """
         self.input = input
-        self.output = downsample.max_pool2D(input, self.pool_shape,
+        self.output = downsample.max_pool_2d(input, self.pool_shape,
                                             ignore_border=True)
         if input_shape:
             outsh = list(input_shape)
