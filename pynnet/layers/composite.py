@@ -21,12 +21,14 @@ class LayerStack(CompositeLayer):
         Tests:
         >>> from pynnet.layers import *
         >>> l = LayerStack([ReshapeLayer((None, 1, 32, 32)), 
-        ...                 ConvLayer((5,5), 4)])
+        ...                 ConvLayer((5,5), 4, name='cl')])
         >>> l.layers
-        [ReshapeLayer..., ConvLayer...]
+        [ReshapeLayer..., cl]
         >>> ll = test_saveload(l)
         >>> ll.layers
-        [ReshapeLayer..., ConvLayer...]
+        [ReshapeLayer..., cl]
+        >>> ll.get_layer('cl')
+        cl
         """
         CompositeLayer.__init__(self, name, layers)
         self.layers = layers
@@ -43,6 +45,7 @@ class LayerStack(CompositeLayer):
             raise ValueError('wrong cookie for LayerStack')
         lclass = pload(file)
         self.layers = [c.loadf(file) for c in lclass]
+        self.add(self.layers)
 
     def build(self, input, input_shape=None):
         r"""

@@ -212,11 +212,8 @@ class CompositeLayer(BaseLayer):
         return self._dict[name]
 
     def _save_(self, file):
-        file.write('CompL1')
-        psave(self._dict, file)
+        pass
 
     def _load_(self, file):
-        c = file.read(6)
-        if c != 'CompL1':
-            raise ValueError('wrong cookie for CompositeLayer')
-        self._dict = pload(file)
+        self._dict = dict()
+
