@@ -112,11 +112,11 @@ class RBMLayer(BaseLayer):
         Returns the free energy expression for sample `v_sample`.
         
         Tests:
-        >>> r = RBMLayer(4, 3)
+        >>> r = RBMLayer(4, 3, dtype='float32')
         >>> x = T.matrix('sample')
         >>> e = r.free_energy(x)
         >>> theano.pp(e)
-        '(sum(((-Sum{1}(log((1 + exp(((sample \\dot W) + b)))))) - (sample \\dot c))) / ((-Sum{1}(log((1 + exp(((sample \\dot W) + b)))))) - (sample \\dot c)).shape[0])'
+        '(sum(((-Sum{1}(log((1 + exp(((sample \\dot W) + b)))))) - (sample \\dot c))) / float32(((-Sum{1}(log((1 + exp(((sample \\dot W) + b)))))) - (sample \\dot c)).shape)[0])'
         >>> f = theano.function([x], e)
         """
         wx_b = T.dot(v_sample, self.W) + self.b
@@ -208,7 +208,7 @@ class RBMLayer(BaseLayer):
         else:
             # reconstruction cross-entropy is a better proxy for CD
             self.cost = cross_entropy(sigmoid(pre_sigm_nvs[-1]), self.input)
-
+    
     def pretrain_helper(self, lr=0.1):
         r"""
         Returns the cost function and the updates that should be used for
