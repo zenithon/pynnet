@@ -224,7 +224,7 @@ class RBMLayer(BaseLayer):
         >>> r.build(x)
         >>> cost, updts = r.pretrain_helper()
         >>> sorted(map(repr, updts.keys()))
-        ['<RandomStateType>', '<RandomStateType>', 'W', 'b', 'c']
+        ['<RandomStateType>', '<RandomStateType>', '<RandomStateType>', 'W', 'b', 'c']
         >>> f = theano.function([x], r.cost, updates=updts)
         >>> xr = numpy.random.random((5, 3))
         >>> c1 = f(xr)
