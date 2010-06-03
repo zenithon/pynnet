@@ -1,7 +1,7 @@
 from __future__ import with_statement
 
 __all__ = ['BaseObject', 'theano', 'numpy', 'pickle', 'psave', 'pload',
-           'test_saveload']
+           'test_saveload', 'load', 'loadf']
 
 try:
     import cPickle as pickle
@@ -35,12 +35,48 @@ def test_saveload(obj):
     obj.savef(f)
     f2 = StringIO.StringIO(f.getvalue())
     f.close()
-    obj2 = obj.__class__.loadf(f2)
+    obj2 = loadf(f2)
     f2.close()
     return obj2
 
 import numpy
 import theano
+
+def _pickle_method(method):
+    r"""
+    Helper function to allow pickling of methods.
+    
+    Tests:
+    >>> _pickle_method(BaseObject._load_)
+    (<built-in function getattr>, (<class 'pynnet.base.BaseObject'>, '_load_'))
+    >>> BaseObject._test = psave
+    >>> _pickle_method(BaseObject._test)
+    (<function _unpickle_modname at ...>, ('pynnet.base', 'psave'))
+    >>> del BaseObject._test
+    """
+    func_name = method.im_func.__name__
+    obj = method.im_self
+    if obj is None:
+        obj = method.im_class
+    if not hasattr(obj, func_name):
+        return _unpickle_modname, (method.im_func.__module__, func_name)
+    return getattr, (obj, func_name)
+
+def _unpickle_modname(mod, name):
+    r"""
+    Helper function for some type of class methods.
+
+    >>> _unpickle_modname('pynnet.base', 'psave')
+    <function psave at ...>
+    """
+    import sys
+    __import__(mod)
+    mod = sys.modules[mod]
+    return getattr(mod, name)
+
+import copy_reg
+import types
+copy_reg.pickle(types.MethodType, _pickle_method)
 
 class BaseObject(object):
     def _save_(self, file):
@@ -80,9 +116,6 @@ class BaseObject(object):
         Do NOT override this method, implement a `_save_()`
         method for your classes.
         """
-        if hasattr(self, '_vitual'):
-            raise ValueError('Cannot save a virtual object.  Save the parent instead.')
-        
         with open(fname, 'wb') as f:
             self.savef(f)
 
@@ -93,45 +126,12 @@ class BaseObject(object):
         Do NOT override this method, implement a `_save_()` method for
         your classes.
         """
+        psave(type(self), f)
         for C in reversed(type(self).__mro__):
             if hasattr(C, '_save_'):
+                psave(C._load_, f)
                 C._save_(self, f)
-    
-    @classmethod
-    def load(cls, fname):
-        r"""
-        Load an object from a save file.
-
-        The resulting object will have the same class as the calling
-        class of this function.  If the saved object in the file is
-        not of the appropriate class exceptions may be raised.
-
-        Do NOT override this method, implement a `_load_()`
-        method for your classes.
-
-        Do NOT rely on being able to load an objet as a different
-        class than the one it was before save() since that possibility
-        may go away in the future.
-        """
-        with open(fname, 'rb') as f:
-            return cls.loadf(f)
-
-    @classmethod
-    def loadf(cls, f):
-        r"""
-        Loads an object from the file-like object `f`.
-        
-        See the documentation for `load()` for a more complete
-        description.
-
-        Do NOT override this method, implement a `_load_()` method for
-        your classes.
-        """
-        obj = object.__new__(cls)
-        for C in reversed(type(obj).__mro__):
-            if hasattr(C, '_load_'):
-                C._load_(obj, f)
-        return obj
+        psave(None, f)
     
     def _load_(self, file):
         r"""
@@ -143,4 +143,24 @@ class BaseObject(object):
         """
         str = file.read(5)
         if str != "SOSV1":
-            raise ValueError('Not a save file of file is corrupted')
+            raise ValueError('Not a save file or file is corrupted')
+
+def load(fname):
+    r"""
+    Load an object from a save file.
+    """
+    with open(fname, 'rb') as f:
+        return loadf(f)
+
+def loadf(f):
+    r"""
+    Loads an object from the file-like object `f`.    
+    """
+    cls = pload(f)
+    obj = object.__new__(cls)
+    loadfunc = pload(f)
+    while loadfunc is not None:
+        loadfunc(obj, f)
+        loadfunc = pload(f)
+    return obj
+

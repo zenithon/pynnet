@@ -38,14 +38,12 @@ class ReshapeLayer(BaseLayer):
         self.outshape = new_shape
 
     def _save_(self, file):
-        file.write('RL1')
         psave(self.outshape, file)
     
-    def _load_(self, file):
-        c = file.read(3)
-        if c != 'RL1':
-            raise ValueError('Wrong magic for ReshapeLayer')
+    def _load1_(self, file):
         self.outshape = pload(file)
+
+    _load_ = _load1_
 
     def build(self, input, input_shape=None):
         r"""
@@ -153,17 +151,12 @@ class SharedConvLayer(BaseLayer):
                 image_shape[3]-b*filter_shape[3]+b)
     
     def _save_(self, file):
-        file.write('SCL3')
         psave((self.filter_shape, self.nlin, self.mode), file)
         
-    def _load_(self, file):
-        c = file.read(4)
-        if c == 'SCL2':
-            _, self.filter_shape, self.nlin, self.mode = pload(file)
-        elif c == 'SCL3':
-            self.filter_shape, self.nlin, self.mode = pload(file)
-        else:
-            raise ValueError('wrong cookie for SharedConvLayer')
+    def _load1_(self, file):
+        self.filter_shape, self.nlin, self.mode = pload(file)
+
+    _load_ = _load1_
 
     def build(self, input, input_shape=None):
         r"""
@@ -292,16 +285,14 @@ class ConvLayer(SharedConvLayer):
                                  mode=mode, name=name)
     
     def _save_(self, file):
-        file.write('CL2')
         numpy.save(file, self.filter.value)
         numpy.save(file, self.b.value)
         
-    def _load_(self, file):
-        c = file.read(3)
-        if c != 'CL2':
-            raise ValueError('wrong magic for ConvLayer')
+    def _load1_(self, file):
         self.filter = theano.shared(numpy.load(file), name='filter')
         self.b = theano.shared(numpy.load(file), name='b')
+
+    _load_ = _load1_
 
     def build(self, input, input_shape=None):
         r"""

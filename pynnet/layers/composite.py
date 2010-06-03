@@ -34,18 +34,16 @@ class LayerStack(CompositeLayer):
         self.layers = layers
 
     def _save_(self, file):
-        file.write('LS1')
-        psave([l.__class__ for l in self.layers], file)
+        psave(len(self.layers), file)
         for l in self.layers:
             l.savef(file)
 
-    def _load_(self, file):
-        c = file.read(3)
-        if c != 'LS1':
-            raise ValueError('wrong cookie for LayerStack')
-        lclass = pload(file)
-        self.layers = [c.loadf(file) for c in lclass]
+    def _load1_(self, file):
+        num = pload(file)
+        self.layers = [loadf(file) for _ in range(num)]
         self.add(self.layers)
+    
+    _load_ = _load1_
 
     def build(self, input, input_shape=None):
         r"""

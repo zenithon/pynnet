@@ -37,14 +37,12 @@ class CorruptLayer(BaseLayer):
         self.theano_rng = theano_rng
 
     def _save_(self, file):
-        file.write('CL1')
         psave((self.noise, self.theano_rng), file)
 
-    def _load_(self, file):
-        c = file.read(3)
-        if c != 'CL1':
-            raise ValueError('wrong cookie for CorruptLayer')
+    def _load1_(self, file):
         self.noise, self.theano_rng = pload(file)
+
+    _load_ = _load1_
     
     def build(self, input, input_shape=None):
         r"""
@@ -185,23 +183,19 @@ class Autoencoder(NNet):
                       error=err, name=name)
 
     def _save_(self, file):
-        file.write('AE2')
         psave(self.tied, file)
         if self.tied:
             numpy.save(file, self._b.value)
 
-    def _load_(self, file):
-        s = file.read(3)
-        if s != 'AE2':
-            raise ValueError('wrong cookie for Autoencoder')
+    def _load1_(self, file):
         self.tied = pload(file)
-        if len(self.layers) == 2:
-            self.layers.insert(0, CorruptLayer(0.0))
 
         if self.tied:
             self._b = theano.shared(value=numpy.load(file), name='b2')
             self.layers[2].W = self.layers[1].W.T
             self.layers[2].b = self._b
+
+    _load_ = _load1_
 
     def build(self, input, input_shape=None):
         r"""
@@ -359,18 +353,14 @@ class ConvAutoencoder(NNet):
                       error=err, name=name)
     
     def _save_(self, file):
-        file.write('CAE1')
         self.layer.savef(file)
     
-    def _load_(self, file):
-        s = file.read(4)
-        if s != 'CAE1':
-            raise ValueError('wrong cookie for ConvAutoencoder')
-        self.layer = ConvLayer.loadf(file)
-        if len(self.layers) == 2:
-            self.layers.insert(0, CorruptLayer(0.0))
+    def _load1_(self, file):
+        self.layer = loadf(file)
         self.layers[1].filter = self.layer.filter
         self.layers[1].b = self.layer.b
+    
+    _load_ = _load1_
 
     def build(self, input, input_shape=None):
         r"""

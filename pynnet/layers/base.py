@@ -99,14 +99,12 @@ class BaseLayer(BaseObject):
         self.name = name
 
     def _save_(self, file):
-        file.write('BL1')
         psave(self.name, file)
 
-    def _load_(self, file):
-        c = file.read(3)
-        if c != 'BL1':
-            raise ValueError('wrong cookie for BaseLayer')
+    def _load1_(self, file):
         self.name = pload(file)
+
+    _load_ = _load1_
 
     def build(self, input, input_shape=None):
         r"""
@@ -214,6 +212,7 @@ class CompositeLayer(BaseLayer):
     def _save_(self, file):
         pass
 
-    def _load_(self, file):
+    def _load1_(self, file):
         self._dict = dict()
 
+    _load_ = _load1_

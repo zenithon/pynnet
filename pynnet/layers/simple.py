@@ -56,14 +56,12 @@ class SharedLayer(BaseLayer):
         self.b = b
 
     def _save_(self, file):
-        file.write('SL1')
         psave(self.activation, file)
 
-    def _load_(self, file):
-        s = file.read(3)
-        if s != 'SL1':
-            raise ValueError('wrong cookie for SharedLayer')
+    def _load1_(self, file):
         self.activation = pload(file)
+
+    _load_ = _load1_
     
     def build(self, input, input_shape=None):
         r"""
@@ -113,7 +111,7 @@ class SimpleLayer(SharedLayer):
     Examples:
     >>> h = SimpleLayer(20, 16)
     >>> h = SimpleLayer(50, 40, activation=sigmoid)
-    >>> h = SimpleLayer(3, 2, dtype=numpy.float32)
+    >>> h = SimpleLayer(3, 2, dtype='float32')
 
     Attributes:
     `W` -- (shared matrix, read-only) Shared connection weights
@@ -146,16 +144,14 @@ class SimpleLayer(SharedLayer):
                              rng=rng, name=name)
     
     def _save_(self, file):
-        file.write('HL2')
         numpy.save(file, self.W.value)
         numpy.save(file, self.b.value)
 
-    def _load_(self, file):
-        s = file.read(3)
-        if s != 'HL2':
-            raise ValueError('wrong cookie for SimpleLayer')
+    def _load1_(self, file):
         self.W = theano.shared(value=numpy.load(file), name='W')
         self.b = theano.shared(value=numpy.load(file), name='b')
+
+    _load_ = _load1_
     
     def build(self, input, input_shape=None):
         r"""
