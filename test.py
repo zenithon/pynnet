@@ -16,7 +16,9 @@ def test(name):
 def cover(name):
     __import__(name)
     for meth in methods_of(sys.modules[name]):
-        if meth.__name__ in ['_save_', '_load_', '__str__']:
+        if meth.__name__ in ['_save_', '__str__']:
+            continue
+        if meth.__name__.startswith('_load'):
             continue
         if meth.__doc__ is None:
             print "*** No doc for:", meth.__name__
