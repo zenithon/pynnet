@@ -3,7 +3,6 @@ from pynnet.nlins import *
 
 __all__ = ['ReshapeLayer', 'ConvLayer', 'SharedConvLayer', 'MaxPoolLayer']
 
-import theano.tensor as T
 from theano.tensor.nnet import conv
 from theano.tensor.signal import downsample
 
@@ -302,7 +301,7 @@ class ConvLayer(SharedConvLayer):
         >>> import pynnet
         >>> c = ConvLayer((5,5), 2, nlin=pynnet.nlins.tanh)
         >>> x = T.tensor4('x')
-        >>> c.build(x, (2, 1, 28, 28))
+        >>> c.build(x, input_shape=(2, 1, 28, 28))
         >>> c.params
         [b, filter]
         >>> c.input
