@@ -4,7 +4,6 @@ from pynnet.net import NNet
 from pynnet.nlins import tanh
 from pynnet.errors import mse
 
-import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
 
 __all__ = ['CorruptLayer', 'Autoencoder', 'ConvAutoencoder']

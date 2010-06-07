@@ -3,8 +3,6 @@ from pynnet.nlins import *
 
 __all__ = ['SimpleLayer', 'SharedLayer']
 
-import theano.tensor as T
-
 class SharedLayer(BaseLayer):
     r"""
     Specialized layer that works with passed-in W and b.

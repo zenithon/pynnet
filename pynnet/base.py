@@ -1,6 +1,6 @@
 from __future__ import with_statement
 
-__all__ = ['BaseObject', 'theano', 'numpy', 'pickle', 'psave', 'pload',
+__all__ = ['BaseObject', 'theano', 'T', 'numpy', 'pickle', 'psave', 'pload',
            'test_saveload', 'load', 'loadf']
 
 try:
@@ -41,6 +41,7 @@ def test_saveload(obj):
 
 import numpy
 import theano
+import theano.tensor as T
 
 def _pickle_method(method):
     r"""

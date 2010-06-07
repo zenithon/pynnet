@@ -1,5 +1,4 @@
 from base import *
-import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
 from pynnet.nlins import sigmoid
 from pynnet.errors import cross_entropy

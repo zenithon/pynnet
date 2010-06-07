@@ -51,8 +51,7 @@ class LayerStack(CompositeLayer):
         
         Tests:
         >>> from pynnet.layers import *
-        >>> import theano
-        >>> x = theano.tensor.tensor3('x', dtype='float32')
+        >>> x = T.tensor3('x', dtype='float32')
         >>> s = LayerStack([ReshapeLayer((None, 1024)),
         ...                 SimpleLayer(1024, 1024, dtype=numpy.float32)])
         >>> s.build(x, input_shape=(3, 32, 32))
