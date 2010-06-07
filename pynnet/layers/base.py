@@ -159,7 +159,7 @@ class CompositeLayer(BaseLayer):
     Attributes:
     None
     """
-    def __init__(self, name, sublayers):
+    def __init__(self, name, *sublayers):
         r"""
         Tests:
         >>> c = CompositeLayer(None, [CompositeLayer('a', [BaseLayer('b')]),
