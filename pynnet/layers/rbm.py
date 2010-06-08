@@ -184,10 +184,13 @@ class RBMLayer(BaseLayer):
         else:
             chain_start = ph_sample
             
-        [pre_sigm_nvs, nv, nv_samples, pre_sigm_nhs, nh, nh_samples], self.rbm_updates = \
+        [pre_sigm_nvs, nv, nv_samples, pre_sigm_nhs, nh, nh_samples], upds = \
             theano.scan(self._gibbs_hvh, 
                         outputs_info=[None,None,None,None,None,chain_start],
                         n_steps=self.k)
+
+        for v, u in upds.iteritems():
+            v.default_update = u
 
         # determine gradients on RBM parameters
         # not that we only need the sample at the end of the chain
@@ -223,21 +226,17 @@ class RBMLayer(BaseLayer):
         >>> r.build(x)
         >>> cost, updts = r.pretrain_helper()
         >>> sorted(map(repr, updts.keys()))
-        ['<RandomStateType>', '<RandomStateType>', '<RandomStateType>', 'W', 'b', 'c']
-        >>> f = theano.function([x], r.cost, updates=updts)
+        ['W', 'b', 'c']
+        >>> f = theano.function([x], cost, updates=updts)
         >>> xr = numpy.random.random((5, 3))
         >>> c1 = f(xr)
-
-        # cost is weird: sometimes goes up, sometimes goes down 
-        # (maybe due to sampling) so don't run tests below
-        #>>> c2 = f(xr)
-        #>>> c1 > c2
-        #True
+        >>> c2 = f(xr)
+        >>> c1 > c2    # This may fail very rarely.
+        True
         """
         # We must not compute the gradient through the gibbs sampling
         gparams = T.grad(self.rbm_cost, self.rbm_params,
                          consider_constant=[self.rbm_target])
         a = T.cast(lr, dtype=self.dtype)
         updts = dict((p, p-gp*a) for p, gp in izip(self.rbm_params, gparams))
-        updts.update(self.rbm_updates)
         return self.rbm_cost, updts
