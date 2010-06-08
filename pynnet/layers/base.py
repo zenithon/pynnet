@@ -11,6 +11,8 @@ class prop_meta(type):
     def __new__(meta, class_name, bases, new_attrs):
         r"""
         :nodoc:
+
+        Tested by `prop`.
         """
         if bases == (object,):
             # The prop class itself
@@ -27,14 +29,13 @@ class prop(object):
     class namespace.
     
     The set method is specified with 'fset', the get with 'fget' and
-    the del with 'fdel'.  All are optional.  Any other attributes of
-    the class are ignored and will not be preserved.
+    the del with 'fdel'.  All are optional.  Documentation for the
+    attribute is taken from the class documentation, if specified.
+    Any other attributes of the class are ignored and will not be
+    preserved.
 
     The 'self' argument these methods take refer to the enclosing
     class of the attribute, not the attribute 'class'.
-    
-    Also the class documentation is taken as the property
-    documentation.
     
     Example/test:
     >>> class Angle(object):
@@ -64,7 +65,7 @@ cdict = dict()
 
 class BaseLayer(BaseObject):
     r"""
-    Convinient base class for layers that sets the required `name`
+    Convenient base class for layers that sets the required `name`
     attribute in the constructor.
 
     If you pass it None for `name` in the constructor then a suitable
