@@ -151,7 +151,8 @@ class Autoencoder(NNet):
             self.layers[2].activation = val
 
     def __init__(self, n_in, n_out, tied=False, nlin=tanh, noise=0.0, 
-                 err=mse, dtype=theano.config.floatX, name=None):
+                 err=mse, dtype=theano.config.floatX, name=None,
+                 rng=numpy.random, noise_rng=RandomStreams()):
         r"""
         Tests:
         >>> a = Autoencoder(20, 16, tied=True, noise=0.01)
@@ -172,13 +173,13 @@ class Autoencoder(NNet):
         b2
         """
         self.tied = tied
-        layer1 = SimpleLayer(n_in, n_out, activation=nlin, dtype=dtype)
+        layer1 = SimpleLayer(n_in, n_out, activation=nlin, dtype=dtype, rng=rng)
         if self.tied:
             self._b = theano.shared(value=numpy.random.random((n_in,)).astype(dtype), name='b2')
             layer2 = SharedLayer(layer1.W.T, self._b, activation=nlin)
         else:
-            layer2 = SimpleLayer(n_out, n_in, activation=nlin, dtype=dtype)
-        NNet.__init__(self, [CorruptLayer(noise), layer1, layer2], 
+            layer2 = SimpleLayer(n_out, n_in, activation=nlin, dtype=dtype, rng=rng)
+        NNet.__init__(self, [CorruptLayer(noise, theano_rng=noise_rng), layer1, layer2], 
                       error=err, name=name)
 
     def _save_(self, file):
