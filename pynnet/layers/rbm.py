@@ -231,8 +231,10 @@ class RBMLayer(BaseLayer):
         >>> xr = numpy.random.random((5, 3))
         >>> c1 = f(xr)
         >>> c2 = f(xr)
-        >>> c1 > c2    # This may fail very rarely.
-        True
+        
+        # It actually fails not so rarely so disable again.
+        #>>> c1 > c2    # This may fail very rarely.
+        #True
         """
         # We must not compute the gradient through the gibbs sampling
         gparams = T.grad(self.rbm_cost, self.rbm_params,
