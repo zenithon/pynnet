@@ -1,4 +1,6 @@
-import doctest, sys, pkgutil, types, pynnet
+import doctest, sys, os, pkgutil, types, pynnet
+
+nullfile = file(os.devnull, "wb")
 
 def runTests(mod):
     for (_, name, ispkg) in pkgutil.walk_packages(mod.__path__, mod.__name__+'.'):
@@ -40,6 +42,31 @@ def methods_of(obj, mod=None):
         if isinstance(attr, (types.FunctionType, types.UnboundMethodType)):
             yield attr
 
+def test_example(file):
+    fail = False
+    env = dict()
+    print "Trying:", file,
+    sys.stdout.flush()
+    stdout = sys.stdout
+    sys.stdout = nullfile
+    try:
+        execfile(file, env)
+    except Exception, e:
+        fail = e
+    finally:
+        sys.stdout = stdout
+
+    if fail:
+        print "FAILED"
+        print type(fail), fail
+    else:
+        print "OK"
+
+def try_examples(dir):
+    for file in os.listdir(dir):
+        if file[-3:] == '.py':
+            test_example(os.path.join(dir, file))
+
 if __name__ == '__main__':
     if len(sys.argv) > 1:
         for mod in sys.argv[1:]:
@@ -58,3 +85,4 @@ if __name__ == '__main__':
                 cover(mod)
     else:
         runTests(pynnet)
+        try_examples('examples')
