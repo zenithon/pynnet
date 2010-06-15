@@ -2,6 +2,8 @@
 # It is an experiment in which we try to make a network learn the
 # patterns of input and output for the xor function.
 
+# RUNTIME: about 30 seconds
+
 import theano
 from pynnet import *
 
@@ -16,7 +18,6 @@ sy = theano.tensor.matrix('y')
 xornet.build(sx, sy)
 
 # We can then build functions from these expressions to use our network
-print "Compiling theano functions, this make take some time."
 eval = theano.function([sx], xornet.output)
 test = theano.function([sx, sy], xornet.cost)
 train = theano.function([sx, sy], xornet.cost, 
