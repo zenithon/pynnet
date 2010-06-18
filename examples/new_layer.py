@@ -34,9 +34,9 @@ class NormalizationLayer(BaseLayer):
         temp = self.input - self.input.min().min()
         self.output = temp / temp.max().max()
 
-    # As-is, this layer is usable, but networks using it will not be saveable.
-    # To allow the saving of network using this layer we would have to define
-    # appropritate _save_ and _load_ methods.  This will not be discussed here.
+    # As-is, this layer is usable.  It can also be saved and loaded
+    # correctly since it does not have any instance-specific
+    # parameters.
 
 # Now we can build networks using our new layer (and existing ones of course)
 
