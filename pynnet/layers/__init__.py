@@ -36,3 +36,4 @@ from conv import *
 from autoencoder import *
 from composite import *
 from recurrent import *
+from lstm import *
