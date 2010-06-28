@@ -147,6 +147,7 @@ def recurrent_autoencoder(self, n_in, n_out, tied=True, nlin=sigmoid,
     documentation for `Autoencoder` for details on the semantics of
     the parameters.
     """
+    from pynnet.layers import Autoencoder
     ae = Autoencoder(n_in, n_out, tied=tied, nlin=nlin, noise=noise,
                      err=err, dtype=dtype, rng=rng, noise_rng=noise_rng)
     return RecurrentWrapper(self, ae, (n_out,), name=name, dtype=dtype)
