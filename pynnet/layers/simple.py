@@ -156,7 +156,7 @@ class SimpleLayer(SharedLayer):
         Builds the layer with input expresstion `input`.
 
         Tests:
-        >>> h = SimpleLayer(3, 2, dtype=numpy.float32)
+        >>> h = SimpleLayer(3, 2, dtype='float32')
         >>> x = T.fmatrix('x')
         >>> h.build(x, input_shape=(4, 3))
         >>> h.params

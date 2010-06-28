@@ -53,7 +53,7 @@ class LayerStack(CompositeLayer):
         >>> from pynnet.layers import *
         >>> x = T.tensor3('x', dtype='float32')
         >>> s = LayerStack([ReshapeLayer((None, 1024)),
-        ...                 SimpleLayer(1024, 1024, dtype=numpy.float32)])
+        ...                 SimpleLayer(1024, 1024, dtype='float32')])
         >>> s.build(x, input_shape=(3, 32, 32))
         >>> s.input
         x

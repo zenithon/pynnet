@@ -205,7 +205,7 @@ class Autoencoder(NNet):
 
         Tests:
         >>> x = T.fmatrix('x')
-        >>> ae = Autoencoder(10, 8, tied=True, dtype=numpy.float32)
+        >>> ae = Autoencoder(10, 8, tied=True, dtype='float32')
         >>> ae.build(x)
         >>> ae.input
         x
@@ -218,7 +218,7 @@ class Autoencoder(NNet):
         'tanh(((x \\dot W) + b))'
         >>> theano.pp(ae.cost)
         '((sum(((tanh(((tanh(((x \\dot W) + b)) \\dot W.T) + b2)) - x) ** 2)) / float32(((tanh(((tanh(((x \\dot W) + b)) \\dot W.T) + b2)) - x) ** 2).shape)[0]) / float32(((tanh(((tanh(((x \\dot W) + b)) \\dot W.T) + b2)) - x) ** 2).shape)[1])'
-        >>> ae = Autoencoder(3, 2, tied=False, noise=0.25, dtype=numpy.float32)
+        >>> ae = Autoencoder(3, 2, tied=False, noise=0.25, dtype='float32')
         >>> ae.build(x, (4, 3))
         >>> ae.input
         x
@@ -257,7 +257,7 @@ class ConvAutoencoder(NNet):
     Examples:
     >>> ca = ConvAutoencoder((5,5), 3)
     >>> ca = ConvAutoencoder((4,3), 8, noise=0.25)
-    >>> ca = ConvAutoencoder((4,4), 4, dtype=numpy.float32)
+    >>> ca = ConvAutoencoder((4,4), 4, dtype='float32')
 
     Attributes:
     `noise` -- (float, read-write) The corruption level of the input.
@@ -369,7 +369,7 @@ class ConvAutoencoder(NNet):
         Also builds the cost for pretraining.
 
         Tests:
-        >>> cae = ConvAutoencoder((3,3), 2, dtype=numpy.float32)
+        >>> cae = ConvAutoencoder((3,3), 2, dtype='float32')
         >>> x = T.tensor4('x', dtype='float32')
         >>> cae.build(x, input_shape=(3, 1, 32, 32))
         >>> cae.input
