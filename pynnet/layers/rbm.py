@@ -115,7 +115,7 @@ class RBMLayer(BaseLayer):
         >>> x = T.matrix('sample')
         >>> e = r.free_energy(x)
         >>> theano.pp(e)
-        '(sum(((-Sum{1}(log((1 + exp(((sample \\dot W) + b)))))) - (sample \\dot c))) / float32(((-Sum{1}(log((1 + exp(((sample \\dot W) + b)))))) - (sample \\dot c)).shape)[0])'
+        '(sum(((-Sum{1}(log((1 + exp(((sample \\dot W) + b)))))) - (sample \\dot c))) / ((-Sum{1}(log((1 + exp(((sample \\dot W) + b)))))) - (sample \\dot c)).shape[0])'
         >>> f = theano.function([x], e)
         """
         wx_b = T.dot(v_sample, self.W) + self.b
