@@ -5,7 +5,7 @@ from pynnet.errors import cross_entropy
 
 from theano.tensor.shared_randomstreams import RandomStreams
 
-__all__ = ['RecurrentWrapper']
+__all__ = ['RecurrentWrapper', 'recurrent_layer', 'recurrent_autoencoder']
 
 class RecurrentWrapper(CompositeLayer):
     r"""
@@ -138,18 +138,36 @@ class RecurrentWrapper(CompositeLayer):
         self.params = self.base_layer.params
         self.memory.default_update = outs[-1]
 
-def recurrent_autoencoder(self, n_in, n_out, tied=True, nlin=sigmoid,
-                          noise=0.0, err=cross_entropy, name=None,
+def recurrent_layer(n_in, n_out, nlin=sigmoid, rng=numpy.random, 
+                    name=None, dtype=theano.config.floatX):
+    r"""
+    Utility function to create a recurrent layer.  See the
+    documentation for `SimpleLayer` for details on the semantics of
+    the parameters.
+
+    Examples:
+    >>> rl = recurrent_layer(3, 2)
+    """
+    from pynnet.layers import SimpleLayer
+    h = SimpleLayer(n_in+n_out, n_out, nlin=nlin, dtype=dtype, rng=rng)
+    return RecurrentWrapper(h, (n_out,), name=name, dtype=dtype)
+
+def recurrent_autoencoder(n_in, n_out, tied=True, nlin=sigmoid,
+                          noise=0.0, error=cross_entropy, name=None,
                           dtype=theano.config.floatX, rng=numpy.random,
                           noise_rng=RandomStreams()):
     r"""
     Utility function to create a recurrent autoencoder.  See the
     documentation for `Autoencoder` for details on the semantics of
     the parameters.
+
+    Examples:
+    >>> rae = recurrent_autoencoder(3, 2)
+    >>> rae = recurrent_autoencoder(4, 4, tied=False)
     """
     from pynnet.layers import Autoencoder
-    ae = Autoencoder(n_in, n_out, tied=tied, nlin=nlin, noise=noise,
-                     err=err, dtype=dtype, rng=rng, noise_rng=noise_rng)
-    return RecurrentWrapper(self, ae, (n_out,), name=name, dtype=dtype)
+    ae = Autoencoder(n_in+n_out, n_out, tied=tied, nlin=nlin, noise=noise,
+                     err=error, dtype=dtype, rng=rng, noise_rng=noise_rng)
+    return RecurrentWrapper(ae, (n_out,), name=name, dtype=dtype)
     
     
