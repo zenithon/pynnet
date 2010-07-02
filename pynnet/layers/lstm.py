@@ -37,17 +37,17 @@ class LSTMBlock(BaseLayer):
         """
         BaseLayer.__init__(self, name)
         self.peephole = peephole
-        self.map_in = SimpleLayer(in_size, n_cells, activation=g,
+        self.map_in = SimpleLayer(in_size, n_cells, nlin=g,
                                   dtype=dtype, rng=rng)
         if self.peephole:
             in_size += n_cells
-        self.gate_in = SimpleLayer(in_size, n_cells, activation=sigmoid,
+        self.gate_in = SimpleLayer(in_size, n_cells, nlin=sigmoid,
                                    dtype=dtype, rng=rng)
-        self.gate_forget = SimpleLayer(in_size, n_cells, activation=sigmoid,
+        self.gate_forget = SimpleLayer(in_size, n_cells, nlin=sigmoid,
                                        dtype=dtype, rng=rng)
         self.cec = theano.shared(numpy.zeros((n_cells,), dtype=dtype), 
                                  name='cec')
-        self.gate_out = SimpleLayer(in_size, n_cells, activation=sigmoid,
+        self.gate_out = SimpleLayer(in_size, n_cells, nlin=sigmoid,
                                     dtype=dtype, rng=rng)
 
     def _save_(self, file):

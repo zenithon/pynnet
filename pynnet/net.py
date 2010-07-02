@@ -15,18 +15,18 @@ class NNet(LayerStack):
     
     A xor net
     >>> from pynnet.layers import *
-    >>> n = NNet([SimpleLayer(2,2, activation=nlins.tanh),
-    ...           SimpleLayer(2,1, activation=nlins.none)],
+    >>> n = NNet([SimpleLayer(2,2, nlin=nlins.tanh),
+    ...           SimpleLayer(2,1, nlin=nlins.none)],
     ...          error=errors.mse)
     
     A net with no hidden layers
     >>> n = NNet([SimpleLayer(5, 2)], errors.mse)
     
     A more complex net
-    >>> n = NNet([SimpleLayer(20, 50, activation=nlins.tanh),
-    ...           SimpleLayer(50, 50, activation=nlins.sigmoid),
-    ...           SimpleLayer(50, 10, activation=nlins.sigmoid),
-    ...           SimpleLayer(50, 1, activation=nlins.none)],
+    >>> n = NNet([SimpleLayer(20, 50, nlin=nlins.tanh),
+    ...           SimpleLayer(50, 50, nlin=nlins.sigmoid),
+    ...           SimpleLayer(50, 10, nlin=nlins.sigmoid),
+    ...           SimpleLayer(50, 1, nlin=nlins.none)],
     ...          error=errors.nll)
 
     Attributes:
@@ -41,8 +41,8 @@ class NNet(LayerStack):
     def __init__(self, layers, error, name=None):
         r"""
         Tests:
-        >>> net = NNet([SimpleLayer(2,2, activation=nlins.tanh),
-        ...             SimpleLayer(2,1, activation=nlins.none)],
+        >>> net = NNet([SimpleLayer(2,2, nlin=nlins.tanh),
+        ...             SimpleLayer(2,1, nlin=nlins.none)],
         ...            error=errors.mse)
         >>> net.layers
         [SimpleLayer..., SimpleLayer...]

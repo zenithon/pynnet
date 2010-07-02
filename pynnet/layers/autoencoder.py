@@ -112,15 +112,13 @@ class Autoencoder(NNet):
            layer.
     `b2` -- (shared vector, read-only) The bias vector for the
             decoding layer.
-    `activation` -- (function, read-write) The activation of the
-                    encoding layer. (See `SimpleLayer` docs for
-                    details)
-    `activation2` -- (function, read-write) The activation of the
-                     decoding layer. (See `SimpleLayer` docs for
-                     details)
-    `err` -- (function, read-write) The error function for the
-             pretraining cost.  See the `NNet` documentation for
-             details.
+    `nlin` -- (function, read-write) The activation of the encoding
+              layer. (See `SimpleLayer` docs for details)
+    `nlin2` -- (function, read-write) The activation of the decoding
+               layer. (See `SimpleLayer` docs for details)
+    `error` -- (function, read-write) The error function for the
+               pretraining cost.  See the `NNet` documentation for
+               details.
     """
     class noise(prop):
         def fget(self):
@@ -139,16 +137,16 @@ class Autoencoder(NNet):
     class b2(prop):
         def fget(self):
             return self.layers[2].b
-    class activation(prop):
+    class nlin(prop):
         def fget(self):
-            return self.layers[1].activation
+            return self.layers[1].nlin
         def fset(self, val):
-            self.layers[1].activation = val
-    class activation2(prop):
+            self.layers[1].nlin = val
+    class nlin2(prop):
         def fget(self):
-            return self.layers[2].activation
+            return self.layers[2].nlin
         def fset(self, val):
-            self.layers[2].activation = val
+            self.layers[2].nlin = val
 
     def __init__(self, n_in, n_out, tied=False, nlin=tanh, noise=0.0, 
                  err=mse, dtype=theano.config.floatX, name=None,
@@ -162,7 +160,7 @@ class Autoencoder(NNet):
         (20, 16)
         >>> a.b.value.shape
         (16,)
-        >>> a.activation
+        >>> a.nlin
         <function tanh at ...>
         >>> a2 = test_saveload(a)
         >>> a2.noise
@@ -173,12 +171,12 @@ class Autoencoder(NNet):
         b2
         """
         self.tied = tied
-        layer1 = SimpleLayer(n_in, n_out, activation=nlin, dtype=dtype, rng=rng)
+        layer1 = SimpleLayer(n_in, n_out, nlin=nlin, dtype=dtype, rng=rng)
         if self.tied:
             self._b = theano.shared(value=numpy.random.random((n_in,)).astype(dtype), name='b2')
-            layer2 = SharedLayer(layer1.W.T, self._b, activation=nlin)
+            layer2 = SharedLayer(layer1.W.T, self._b, nlin=nlin)
         else:
-            layer2 = SimpleLayer(n_out, n_in, activation=nlin, dtype=dtype, rng=rng)
+            layer2 = SimpleLayer(n_out, n_in, nlin=nlin, dtype=dtype, rng=rng)
         NNet.__init__(self, [CorruptLayer(noise, theano_rng=noise_rng), layer1, layer2], 
                       error=err, name=name)
 
@@ -276,7 +274,7 @@ class ConvAutoencoder(NNet):
             filter.
     `nlin` -- (function, read-write) The activation of the encoding
               layer. (See `ConvLayer` docs for details)
-    `nlin2` -- (function, read-write) The activation of the decoding
+    `nlin2` -- (function, read-write) The actiavtion of the decoding
                layer. (See `ConvLayer` docs for details)
     `err` -- (function, read-write) The error function for the
              pretraining cost.  See the `NNet` documentation for

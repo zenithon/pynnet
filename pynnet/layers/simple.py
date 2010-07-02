@@ -14,7 +14,7 @@ class SharedLayer(BaseLayer):
 
     >>> W = theano.shared(numpy.random.random((3, 2)))
     >>> b = theano.shared(numpy.random.random((2,)))
-    >>> h = SharedLayer(W, b, activation=tanh)
+    >>> h = SharedLayer(W, b, nlin=tanh)
 
     Attributes: 
 
@@ -26,14 +26,13 @@ class SharedLayer(BaseLayer):
     `b` -- (theano vector, read-write) can be any theano expression
            that gives a vector of the appropriate size.  The same
            precautions as for `W` apply.
-    `activation` -- (function, read-write) must be a function that
-                    will receive as input a theano expression gives
-                    back a theano expression of the same shape.  Apart
-                    from the shape restriction any computation can be
-                    preformed on the input.  This is saved with the
-                    layer.
+    `nlin` -- (function, read-write) must be a function that will
+              receive as input a theano expression gives back a theano
+              expression of the same shape.  Apart from the shape
+              restriction any computation can be preformed on the
+              input.  This is saved with the layer.
     """
-    def __init__(self, W, b, activation=tanh, rng=numpy.random, name=None):
+    def __init__(self, W, b, nlin=tanh, rng=numpy.random, name=None):
         r"""
         Tests:
         >>> W = T.fmatrix()
@@ -42,22 +41,22 @@ class SharedLayer(BaseLayer):
         >>> ht = SharedLayer(W, b)
         >>> ht.name != h.name # this tests BaseLayer auto-naming (a bit)
         True
-        >>> ht.activation
+        >>> ht.nlin
         <function tanh at ...>
         >>> h2 = test_saveload(ht)
-        >>> h2.activation
+        >>> h2.nlin
         <function tanh at ...>
         """
         BaseLayer.__init__(self, name)
-        self.activation = activation
+        self.nlin = nlin
         self.W = W
         self.b = b
 
     def _save_(self, file):
-        psave(self.activation, file)
+        psave(self.nlin, file)
 
     def _load1_(self, file):
-        self.activation = pload(file)
+        self.nlin = pload(file)
 
     _load_ = _load1_
     
@@ -97,7 +96,7 @@ class SharedLayer(BaseLayer):
         else:
             self.output_shape = None
         self.input = input
-        self.output = self.activation(T.dot(self.input, self.W) + self.b)
+        self.output = self.nlin(T.dot(self.input, self.W) + self.b)
         self.params = []
 
 class SimpleLayer(SharedLayer):
@@ -108,20 +107,20 @@ class SimpleLayer(SharedLayer):
     
     Examples:
     >>> h = SimpleLayer(20, 16)
-    >>> h = SimpleLayer(50, 40, activation=sigmoid)
+    >>> h = SimpleLayer(50, 40, nlin=sigmoid)
     >>> h = SimpleLayer(3, 2, dtype='float32')
 
     Attributes:
     `W` -- (shared matrix, read-only) Shared connection weights
            matrix.
     `b` -- (shared vector, read-only) Shared bias vector.
-    `activation` -- (function, read-write) must be a function that
-                    will receive as input a theano expression gives
-                    back a theano expression of the same shape.  Apart
-                    from the shape restriction any computation can be
-                    preformed on the input.
+    `nlin` -- (function, read-write) must be a function that will
+              receive as input a theano expression gives back a theano
+              expression of the same shape.  Apart from the shape
+              restriction any computation can be preformed on the
+              input.
     """
-    def __init__(self, n_in, n_out, activation=tanh, rng=numpy.random,
+    def __init__(self, n_in, n_out, nlin=tanh, rng=numpy.random,
                  dtype=theano.config.floatX, name=None):
         r"""
         Tests:
@@ -138,8 +137,7 @@ class SimpleLayer(SharedLayer):
         W = theano.shared(value=W_values, name='W')
         b_values = numpy.zeros((n_out,), dtype=dtype)
         b = theano.shared(value=b_values, name='b')
-        SharedLayer.__init__(self, W, b, activation=activation,
-                             rng=rng, name=name)
+        SharedLayer.__init__(self, W, b, nlin=nlin, rng=rng, name=name)
     
     def _save_(self, file):
         numpy.save(file, self.W.value)
