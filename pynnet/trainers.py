@@ -36,7 +36,7 @@ def get_updates(params, err, alpha):
     return dict((p, p - gp*a) for p, gp in izip(params, gparams))
 
 def early_stopping(train, valid, test, patience=10, patience_increase=2,
-                   improvement_threshold=0.995, validation_frequency=5,
+                   improvement_treshold=0.995, validation_frequency=5,
                    n_epochs=1000, verbose=True, print_time=True):
     r"""
     An implementation of the early stopping algorithm.
