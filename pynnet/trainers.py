@@ -1,5 +1,6 @@
 from base import *
 from itertools import izip
+import time
 
 __all__ = ['early_stopping', 'bprop', 'eval_net', 'minibatch_eval', 
            'minibatch_epoch', 'get_updates']
@@ -36,7 +37,7 @@ def get_updates(params, err, alpha):
 
 def early_stopping(train, valid, test, patience=10, patience_increase=2,
                    improvement_threshold=0.995, validation_frequency=5,
-                   n_epochs=1000, verbose=True, time=True):
+                   n_epochs=1000, verbose=True, print_time=True):
     r"""
     An implementation of the early stopping algorithm.
 
@@ -73,6 +74,6 @@ def early_stopping(train, valid, test, patience=10, patience_increase=2,
             break
     end = time.clock()
     if verbose:
-        print "Best score obtained at epoch %i, score = %f", epoch, test_score
-    if time:
+        print "Best score obtained at epoch %i, score = %f, valid = %f"%(epoch, test_score, best_valid)
+    if print_time:
         print "Time taken: %f min"%((end-start)/60.,)
