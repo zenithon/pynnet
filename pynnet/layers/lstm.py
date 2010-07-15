@@ -5,9 +5,7 @@ from pynnet.layers import SimpleLayer, RecurrentWrapper
 __all__ = ['LSTMBlock']
 
 Broad1 = T.Rebroadcast((1, True))
-Broad = T.Rebroadcast((0, True))
-
-log = open("log", 'w')
+Broad0 = T.Rebroadcast((0, True))
 
 class LSTMBlock(BaseLayer):
     r"""
@@ -138,8 +136,8 @@ class LSTMBlock(BaseLayer):
                     ishp = (1, self.map_in.output_shape[1]+input_shape[1])
                 self.gate_in.build(inp, ishp)
                 self.gate_forget.build(inp, ishp)
-                return ((Broad(self.gate_in.output)*cell_inp) + \
-                    (Broad(self.gate_forget.output)*outp))
+                return ((Broad0(self.gate_in.output)*cell_inp) + \
+                    (Broad0(self.gate_forget.output)*outp))
             outs, upds = theano.scan(block,
                                      sequences=[input, self.map_in.output],
                                      outputs_info=[self.cec])
