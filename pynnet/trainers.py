@@ -2,8 +2,7 @@ from base import *
 from itertools import izip
 import time
 
-__all__ = ['early_stopping', 'bprop', 'eval_net', 'minibatch_eval', 
-           'minibatch_epoch', 'get_updates']
+__all__ = ['early_stopping', 'get_updates']
 
 def get_updates(params, err, alpha):
     r"""
