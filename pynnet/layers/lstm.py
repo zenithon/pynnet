@@ -4,6 +4,11 @@ from pynnet.layers import SimpleLayer, RecurrentWrapper
 
 __all__ = ['LSTMBlock']
 
+Broad1 = T.Rebroadcast((1, True))
+Broad = T.Rebroadcast((0, True))
+
+log = open("log", 'w')
+
 class LSTMBlock(BaseLayer):
     r"""
     An LSTM block of memory cells.
@@ -41,13 +46,13 @@ class LSTMBlock(BaseLayer):
                                   dtype=dtype, rng=rng)
         if self.peephole:
             in_size += n_cells
-        self.gate_in = SimpleLayer(in_size, n_cells, nlin=sigmoid,
+        self.gate_in = SimpleLayer(in_size, 1, nlin=sigmoid,
                                    dtype=dtype, rng=rng)
-        self.gate_forget = SimpleLayer(in_size, n_cells, nlin=sigmoid,
+        self.gate_forget = SimpleLayer(in_size, 1, nlin=sigmoid,
                                        dtype=dtype, rng=rng)
         self.cec = theano.shared(numpy.zeros((n_cells,), dtype=dtype), 
                                  name='cec')
-        self.gate_out = SimpleLayer(in_size, n_cells, nlin=sigmoid,
+        self.gate_out = SimpleLayer(in_size, 1, nlin=sigmoid,
                                     dtype=dtype, rng=rng)
 
     def _save_(self, file):
@@ -91,7 +96,7 @@ class LSTMBlock(BaseLayer):
         >>> l.output_shape
         (10, 3)
         >>> theano.pp(l.output)
-        '(sigmoid(((x \\dot W) + b)) * <theano.scan.Scan object at ...>(?_steps, sigmoid(((x \\dot W) + b)), (tanh(((x \\dot W) + b)) * sigmoid(((x \\dot W) + b))), cec))'
+        '(Rebroadcast{?,1}(sigmoid(((x \\dot W) + b))) * <theano.scan.Scan object at ...>(?_steps, Rebroadcast{?,1}(sigmoid(((x \\dot W) + b))), (tanh(((x \\dot W) + b)) * Rebroadcast{?,1}(sigmoid(((x \\dot W) + b)))), cec))'
         >>> f = theano.function([x], l.output)
         >>> r = f(numpy.random.random((10, 12)))
         >>> r.dtype
@@ -112,7 +117,7 @@ class LSTMBlock(BaseLayer):
         >>> l.output_shape
         (10, 3)
         >>> theano.pp(l.output)
-        '(sigmoid(((join(1, x, <theano.scan.Scan object at ...>(?_steps, x, tanh(((x \\dot W) + b)), cec, W, b, W, b)) \\dot W) + b)) * <theano.scan.Scan object at ...>(?_steps, x, tanh(((x \\dot W) + b)), cec, W, b, W, b))'
+        '(Rebroadcast{?,1}(sigmoid(((join(1, x, <theano.scan.Scan object at ...>(?_steps, x, tanh(((x \\dot W) + b)), cec, W, b, W, b)) \\dot W) + b))) * <theano.scan.Scan object at ...>(?_steps, x, tanh(((x \\dot W) + b)), cec, W, b, W, b))'
         >>> f = theano.function([x], l.output)
         >>> r = f(numpy.random.random((10, 12)))
         >>> r.dtype
@@ -133,8 +138,8 @@ class LSTMBlock(BaseLayer):
                     ishp = (1, self.map_in.output_shape[1]+input_shape[1])
                 self.gate_in.build(inp, ishp)
                 self.gate_forget.build(inp, ishp)
-                return ((self.gate_in.output*cell_inp) + \
-                    (self.gate_forget.output*outp))
+                return ((Broad(self.gate_in.output)*cell_inp) + \
+                    (Broad(self.gate_forget.output)*outp))
             outs, upds = theano.scan(block,
                                      sequences=[input, self.map_in.output],
                                      outputs_info=[self.cec])
@@ -145,13 +150,13 @@ class LSTMBlock(BaseLayer):
             self.gate_out.build(T.join(1, input, outs), oshp)
         else:
             self.gate_in.build(input, input_shape)
-            final_in = self.map_in.output * self.gate_in.output
+            final_in = self.map_in.output * Broad1(self.gate_in.output)
             self.gate_forget.build(input, input_shape)
         
             def cecf(forget, cell_input, outp):
                 return outp * forget + cell_input
             outs, upds = theano.scan(cecf,
-                                     sequences=[self.gate_forget.output, final_in],
+                                     sequences=[Broad1(self.gate_forget.output), final_in],
                                      outputs_info=[self.cec])
 
             self.gate_out.build(input, input_shape)
@@ -165,9 +170,9 @@ class LSTMBlock(BaseLayer):
             self.output_shape = None
         else:
             assert len(input_shape) == 2, "LSTM needs 2d input"
-            self.output_shape = self.gate_out.output_shape
+            self.output_shape = self.map_in.output_shape
 
-        self.output = self.gate_out.output * outs
+        self.output = Broad1(self.gate_out.output) * outs
         self.params = self.gate_in.params + self.map_in.params + \
                        self.gate_forget.params + self.gate_out.params
         
