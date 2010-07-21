@@ -36,7 +36,8 @@ def get_updates(params, err, alpha):
 
 def early_stopping(train, valid, test, patience=10, patience_increase=2,
                    improvement_treshold=0.995, validation_frequency=5,
-                   n_epochs=1000, verbose=True, print_time=True):
+                   n_epochs=1000, verbose=True, print_time=True,
+                   bestf=None):
     r"""
     An implementation of the early stopping algorithm.
 
@@ -63,6 +64,8 @@ def early_stopping(train, valid, test, patience=10, patience_increase=2,
                 if valid_score < best_valid_score * improvement_treshold:
                     patience = max(patience, epoch*patience_increase)
                     best_valid_score = valid_score
+                    if bestf:
+                        bestf()
                     
                     if verbose:
                         test_score = test()
@@ -72,7 +75,7 @@ def early_stopping(train, valid, test, patience=10, patience_increase=2,
             break
     end = time.clock()
     if verbose:
-        print "Best score obtained at epoch %i, score = %f, valid = %f"%(epoch, test_score, best_valid)
+        print "Best score obtained at epoch %i, score = %f, valid = %f"%(epoch, test_score, best_valid_score)
     if print_time:
         print "Time taken: %f min"%((end-start)/60.,)
-    return best_iter, best_valid, test_score
+    return best_iter, best_valid_score, test_score
