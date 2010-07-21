@@ -46,7 +46,6 @@ def early_stopping(train, valid, test, patience=10, patience_increase=2,
 
     :notests:
     """
-    best_params = None
     best_valid_score = float('inf')
     best_iter = 0
     test_score = 0
@@ -76,3 +75,4 @@ def early_stopping(train, valid, test, patience=10, patience_increase=2,
         print "Best score obtained at epoch %i, score = %f, valid = %f"%(epoch, test_score, best_valid)
     if print_time:
         print "Time taken: %f min"%((end-start)/60.,)
+    return best_iter, best_valid, test_score
