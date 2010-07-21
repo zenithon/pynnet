@@ -63,3 +63,14 @@ def cross_entropy(os, y):
     y -- target probabilites (usually 1-hot for each example)
     """
     return T.mean(-T.sum(y*T.log(os) + (1-y)*T.log(1-os), axis=1))
+
+def scaled_cross_entropy(os, y):
+    r"""
+    Cross-entropy cost with inputs scaled from [-1, 1] to [0, 1].
+
+    This is useful for using cross-entropy with tanh.
+    
+    os -- tanh output
+    y -- target probabilites (usually 1-hot for each example)
+    """
+    return cross_entropy((os+1)/2, y)
