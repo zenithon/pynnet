@@ -90,9 +90,11 @@ class SharedLayer(BaseLayer):
 	if input_shape:
             if len(input_shape) != 2:
                 raise ValueError('Expecting a 2-dimension input_shape, got %s'%(input_shape,))
-            if input_shape[1] != self.W.value.shape[0]:
-                raise ValueError('Wrong dimensions for matrix multiplication, (%d != %d)'%(input_shape[1], self.W.value.shape[0]))
-            self.output_shape = (input_shape[0], self.W.value.shape[1])
+            try:
+                self.output_shape = (input_shape[0], self.W.value.shape[1])
+            except AttributeError:
+                # if self.W is not a shared variable then we cop out
+                self.output_shape = None
         else:
             self.output_shape = None
         self.input = input

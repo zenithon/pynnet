@@ -5,7 +5,7 @@ from pynnet.errors import cross_entropy
 
 from theano.tensor.shared_randomstreams import RandomStreams
 
-__all__ = ['RecurrentWrapper', 'recurrent_layer', 'recurrent_autoencoder']
+__all__ = ['RecurrentWrapper', 'recurrent_layer', 'RecurrentAutoencoder']
 
 class RecurrentWrapper(CompositeLayer):
     r"""
@@ -152,22 +152,57 @@ def recurrent_layer(n_in, n_out, nlin=sigmoid, rng=numpy.random,
     h = SimpleLayer(n_in+n_out, n_out, nlin=nlin, dtype=dtype, rng=rng)
     return RecurrentWrapper(h, (n_out,), name=name, dtype=dtype)
 
-def recurrent_autoencoder(n_in, n_out, tied=True, nlin=sigmoid,
-                          noise=0.0, error=cross_entropy, name=None,
-                          dtype=theano.config.floatX, rng=numpy.random,
-                          noise_rng=RandomStreams()):
-    r"""
-    Utility function to create a recurrent autoencoder.  See the
-    documentation for `Autoencoder` for details on the semantics of
-    the parameters.
+class RecurrentAutoencoder(RecurrentWrapper):
+    r""" 
+    Specialized version of RecurrentWrapper to deal with autoencoder
+    pretraining.  See the documentation for `Autoencoder` for details
+    on the semantics of the parameters.
 
     Examples:
-    >>> rae = recurrent_autoencoder(3, 2)
-    >>> rae = recurrent_autoencoder(4, 4, tied=False)
+    >>> rae = RecurrentAutoencoder(3, 2)
+    >>> rae = RecurrentAutoencoder(4, 4, tied=False)
     """
-    from pynnet.layers import Autoencoder
-    ae = Autoencoder(n_in+n_out, n_out, tied=tied, nlin=nlin, noise=noise,
-                     err=error, dtype=dtype, rng=rng, noise_rng=noise_rng)
-    return RecurrentWrapper(ae, (n_out,), name=name, dtype=dtype)
+    def __init__(self, n_in, n_out, tied=True, nlin=sigmoid, noise=0.0, 
+                 error=cross_entropy, name=None, rng=numpy.random,
+                 dtype=theano.config.floatX, noise_rng=RandomStreams()):
+        r"""
+        Tests:
+        >>> rae = RecurrentAutoencoder(10, 5, dtype='float32')
+        >>> r2 = test_saveload(rae)
+        """
+        from pynnet.layers import Autoencoder
+        ae = Autoencoder(n_in+n_out, n_out, tied=tied, nlin=nlin, noise=noise,
+                         err=error, dtype=dtype, rng=rng, noise_rng=noise_rng)
+        RecurrentWrapper.__init__(self, ae, (n_out,), name=name, dtype=dtype)
     
-    
+    def build(self, input, input_shape=None):
+        r"""
+        Tests:
+        >>> r = RecurrentAutoencoder(3, 3, dtype='float32')
+        >>> x = T.fmatrix('x')
+        >>> r.build(x, input_shape=(4, 3))
+        >>> r.params
+        [W, b]
+        >>> r.input
+        x
+        >>> r.output_shape
+        (4, 3)
+        >>> theano.pp(r.output)
+        '<theano.scan.Scan object at ...>(?_steps, x, memory, W, b)[:, 0, :]'
+        >>> f = theano.function([x], r.output)
+        >>> v = f(numpy.random.random((4, 3)))
+        >>> v.dtype
+        dtype('float32')
+        >>> v.shape
+        (4, 3)
+        >>> r.build(x)
+        >>> r.output_shape
+        >>> r=RecurrentWrapper(RecurrentWrapper(SimpleLayer(6,2), (2,)), (2,))
+        >>> r.build(x)
+        >>> f = theano.function([x], r.output)
+        >>> v = f(numpy.random.random((3, 2)))
+        >>> v.shape
+        (3, 2)
+        """
+        RecurrentWrapper.build(self, input, input_shape)
+        self.cost = self.base_layer.err(self.output, self.input)
