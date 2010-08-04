@@ -53,6 +53,11 @@ class LSTMBlock(BaseLayer):
         self.gate_out = SimpleLayer(in_size, 1, nlin=sigmoid,
                                     dtype=dtype, rng=rng)
 
+    def clear(self):
+        val = self.cec.value
+        val[:] = 0
+        self.cec.value = val
+
     def _save_(self, file):
         self.map_in.savef(file)
         self.gate_in.savef(file)
