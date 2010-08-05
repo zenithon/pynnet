@@ -74,3 +74,12 @@ def scaled_cross_entropy(os, y):
     y -- target probabilites (usually 1-hot for each example)
     """
     return cross_entropy((os+1)/2, y)
+
+def cross_entropy_softmax(os, y):
+    r"""
+    Cross-entropy cost for softmax output.
+    
+    os -- probabilites for each class (per example)
+    y -- target probabilites (usually 1-hot for each example)
+    """
+    return T.mean(-T.sum(y*T.log(os), axis=1))
