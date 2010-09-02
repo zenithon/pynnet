@@ -187,3 +187,62 @@ class SplitLayer(BaseLayer):
             helper.output = input[split]
             helper.output_shape = shape
             helper.is_built = True
+
+class ParaLayer(CompositeLayer):
+    r"""
+    Class to run more than one layer in parallel.
+
+    Each layer must take the same input shape.  The output shape must
+    have the same 2nd dimension but may differ in the first.  The end
+    result of each layer is concatenated along the first dimension.
+
+    Examples:
+    >>> p = ParaLayer([SimpleLayer(10, 3), SimpleLayer(10, 2)])
+
+    Attributes:
+    `sublayers` -- (list of layers, read-write) The list of layer to
+                   run in parallel.
+    """
+    def __init__(self, sublayers, name=None):
+        r"""
+        >>> p = ParaLayer([SimpleLayer(10, 3), SimpleLayer(10, 2)])
+        >>> len(p.sublayers)
+        2
+        """
+        CompositeLayer.__init__(self, name, sublayers)
+        self.sublayers = sublayers
+        
+    def build(self, input, input_shape=None):
+        r"""
+        Build layer with input expression `input`.
+        
+        Tests:
+        >>> p = ParaLayer([SimpleLayer(10, 2, dtype='float32'), SimpleLayer(10, 3, dtype='float32')])
+        >>> x = T.fmatrix('x')
+        >>> p.build(x, input_shape=(4,10))
+        >>> p.input
+        x
+        >>> p.output_shape
+        (4, 5)
+        >>> p.params
+        [W, b, W, b]
+        >>> theano.pp(p.output)
+        'join(1, tanh(((x \\dot W) + b)), tanh(((x \\dot W) + b)))'
+        >>> f = theano.function([x], p.output)
+        >>> r = f(numpy.random.random((4,10)))
+        >>> r.dtype
+        dtype('float32')
+        >>> r.shape
+        (4, 5)
+        """
+        self.input = input
+        for l in self.sublayers:
+            l.build(input, input_shape)
+            
+        self.output = T.join(1, *(l.output for l in self.sublayers))
+        if input_shape is None:
+            self.output_shape = None
+        else:
+            self.output_shape = (self.sublayers[0].output_shape[0],
+                               sum(l.output_shape[1] for l in self.sublayers))
+        self.params = sum((l.params for l in self.sublayers), [])
