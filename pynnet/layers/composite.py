@@ -33,18 +33,6 @@ class LayerStack(CompositeLayer):
         CompositeLayer.__init__(self, name, layers)
         self.layers = layers
 
-    def _save_(self, file):
-        psave(len(self.layers), file)
-        for l in self.layers:
-            l.savef(file)
-
-    def _load1_(self, file):
-        num = pload(file)
-        self.layers = [loadf(file) for _ in range(num)]
-        self.add(self.layers)
-    
-    _load_ = _load1_
-
     def build(self, input, input_shape=None):
         r"""
         Builds the layer with input expression `input`.

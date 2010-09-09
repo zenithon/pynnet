@@ -36,14 +36,6 @@ class ReshapeLayer(BaseLayer):
         BaseLayer.__init__(self, name)
         self.outshape = new_shape
 
-    def _save_(self, file):
-        psave(self.outshape, file)
-    
-    def _load1_(self, file):
-        self.outshape = pload(file)
-
-    _load_ = _load1_
-
     def build(self, input, input_shape=None):
         r"""
         Builds the layer with input expresstion `input`.
@@ -149,14 +141,6 @@ class SharedConvLayer(BaseLayer):
                 image_shape[2]-b*filter_shape[2]+b,
                 image_shape[3]-b*filter_shape[3]+b)
     
-    def _save_(self, file):
-        psave((self.filter_shape, self.nlin, self.mode), file)
-        
-    def _load1_(self, file):
-        self.filter_shape, self.nlin, self.mode = pload(file)
-
-    _load_ = _load1_
-
     def build(self, input, input_shape=None):
         r"""
         Builds the layer with input expresstion `input`.
@@ -283,16 +267,6 @@ class ConvLayer(SharedConvLayer):
         SharedConvLayer.__init__(self, filter, b, filter_shape, nlin=nlin, 
                                  mode=mode, name=name)
     
-    def _save_(self, file):
-        numpy.save(file, self.filter.value)
-        numpy.save(file, self.b.value)
-        
-    def _load1_(self, file):
-        self.filter = theano.shared(numpy.load(file), name='filter')
-        self.b = theano.shared(numpy.load(file), name='b')
-
-    _load_ = _load1_
-
     def build(self, input, input_shape=None):
         r"""
         Builds the layer with input expresstion `input`.
@@ -347,16 +321,6 @@ class MaxPoolLayer(BaseLayer):
         """
         BaseLayer.__init__(self, name)
         self.pool_shape = pool_shape
-
-    def _save_(self, file):
-        file.write('MPL1')
-        psave(self.pool_shape, file)
-
-    def _load_(self, file):
-        c = file.read(4)
-        if c != 'MPL1':
-            raise ValueError('wrong magic for MaxPoolLayer')
-        self.pool_shape = pload(file)
 
     def build(self, input, input_shape=None):
         r"""

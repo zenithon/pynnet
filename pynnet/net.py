@@ -53,16 +53,6 @@ class NNet(LayerStack):
         LayerStack.__init__(self, layers, name=name)
         self.err = error
     
-    def _save_(self, file):
-        file.write('NN3')
-        psave(self.err, file)
-    
-    def _load_(self, file):
-        s = file.read(3)
-        if s != 'NN3':
-            raise ValueError('wrong cookie for NNet')
-        self.err = pload(file)
-    
     def build(self, input, target, input_shape=None):
         r""" 
         Build the network from input `input`, with cost against

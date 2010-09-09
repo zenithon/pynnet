@@ -79,14 +79,6 @@ class SplitLayerHelper(BaseLayer):
         BaseLayer.__init__(self, name)
         self.is_built = False
     
-    def _save_(self, file):
-        pass
-    
-    def _load1_(self, file):
-        self.is_built = False
-    
-    _load_ = _load1_
-    
     def build(self, input, input_shape=None):
         r"""
         :notests:
@@ -135,14 +127,6 @@ class SplitLayer(BaseLayer):
         self.splits = splits
         name = self.name
         self.helpers = tuple(SplitLayerHelper(name+'-'+str(i+2)) for i, _ in enumerate(splits[1:]))
-
-    def _save_(self, file):
-        psave(self.splits, file)
-
-    def _load1_(self, file):
-        self.splits = pload(file)
-
-    _load_ = _load1_
 
     def build(self, input, input_shape=None):
         r"""

@@ -99,14 +99,6 @@ class BaseLayer(BaseObject):
             cdict[type(self)] += 1
         self.name = name
 
-    def _save_(self, file):
-        psave(self.name, file)
-
-    def _load1_(self, file):
-        self.name = pload(file)
-
-    _load_ = _load1_
-
     def build(self, input, input_shape=None):
         r"""
         Raises NotImplementedError.
@@ -209,11 +201,3 @@ class CompositeLayer(BaseLayer):
         b
         """
         return self._dict[name]
-
-    def _save_(self, file):
-        pass
-
-    def _load1_(self, file):
-        self._dict = dict()
-
-    _load_ = _load1_

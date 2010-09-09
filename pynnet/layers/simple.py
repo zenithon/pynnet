@@ -52,14 +52,6 @@ class SharedLayer(BaseLayer):
         self.W = W
         self.b = b
 
-    def _save_(self, file):
-        psave(self.nlin, file)
-
-    def _load1_(self, file):
-        self.nlin = pload(file)
-
-    _load_ = _load1_
-    
     def build(self, input, input_shape=None):
         r"""
         Builds the layer with input expresstion `input`.
@@ -140,16 +132,6 @@ class SimpleLayer(SharedLayer):
         b_values = numpy.zeros((n_out,), dtype=dtype)
         b = theano.shared(value=b_values, name='b')
         SharedLayer.__init__(self, W, b, nlin=nlin, rng=rng, name=name)
-    
-    def _save_(self, file):
-        numpy.save(file, self.W.value)
-        numpy.save(file, self.b.value)
-
-    def _load1_(self, file):
-        self.W = theano.shared(value=numpy.load(file), name='W')
-        self.b = theano.shared(value=numpy.load(file), name='b')
-
-    _load_ = _load1_
     
     def build(self, input, input_shape=None):
         r"""

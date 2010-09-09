@@ -58,32 +58,6 @@ class LSTMBlock(BaseLayer):
         val[:] = 0
         self.cec.value = val
 
-    def _save_(self, file):
-        self.map_in.savef(file)
-        self.gate_in.savef(file)
-        self.gate_forget.savef(file)
-        psave((self.cec.value.shape, self.cec.value.dtype, self.peephole), file)
-        self.gate_out.savef(file)
-
-    def _load1_(self, file):
-        self.map_in = loadf(file)
-        self.gate_in = loadf(file)
-        self.gate_forget = loadf(file)
-        shp, dtype = pload(file)
-        self.peephole = False
-        self.cec = theano.shared(numpy.zeros(shp, dtype=dtype), name='cec')
-        self.gate_out = loadf(file)
-
-    def _load2_(self, file):
-        self.map_in = loadf(file)
-        self.gate_in = loadf(file)
-        self.gate_forget = loadf(file)
-        shp, dtype, self.peephole = pload(file)
-        self.cec = theano.shared(numpy.zeros(shp, dtype=dtype), name='cec')
-        self.gate_out = loadf(file)
-
-    _load_ = _load2_
-
     def build(self, input, input_shape=None):
         r"""
         Builds the layer with input expresstion `input`.

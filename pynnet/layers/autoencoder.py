@@ -35,14 +35,6 @@ class CorruptLayer(BaseLayer):
         self.noise = noise
         self.theano_rng = theano_rng
 
-    def _save_(self, file):
-        psave((self.noise, self.theano_rng), file)
-
-    def _load1_(self, file):
-        self.noise, self.theano_rng = pload(file)
-
-    _load_ = _load1_
-    
     def build(self, input, input_shape=None):
         r"""
         Builds the layer with input expresstion `input`.
@@ -179,21 +171,6 @@ class Autoencoder(NNet):
             layer2 = SimpleLayer(n_out, n_in, nlin=nlin, dtype=dtype, rng=rng)
         NNet.__init__(self, [CorruptLayer(noise, theano_rng=noise_rng), layer1, layer2], 
                       error=err, name=name)
-
-    def _save_(self, file):
-        psave(self.tied, file)
-        if self.tied:
-            numpy.save(file, self._b.value)
-
-    def _load1_(self, file):
-        self.tied = pload(file)
-
-        if self.tied:
-            self._b = theano.shared(value=numpy.load(file), name='b2')
-            self.layers[2].W = self.layers[1].W.T
-            self.layers[2].b = self._b
-
-    _load_ = _load1_
 
     def build(self, input, input_shape=None):
         r"""
@@ -350,16 +327,6 @@ class ConvAutoencoder(NNet):
         NNet.__init__(self, [CorruptLayer(noise), layer1, layer2],
                       error=err, name=name)
     
-    def _save_(self, file):
-        self.layer.savef(file)
-    
-    def _load1_(self, file):
-        self.layer = loadf(file)
-        self.layers[1].filter = self.layer.filter
-        self.layers[1].b = self.layer.b
-    
-    _load_ = _load1_
-
     def build(self, input, input_shape=None):
         r"""
         Builds the layer with input expression `input`

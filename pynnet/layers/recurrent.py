@@ -65,19 +65,6 @@ class RecurrentWrapper(CompositeLayer):
         val[:] = 0
         self.memory.value = val
 
-    def _save_(self, file):
-        val = self.memory.value
-        psave((val.shape, val.dtype), file)
-        self.base_layer.savef(file)
-
-    def _load1_(self, file):
-        shp, dtype = pload(file)
-        self.memory = theano.shared(numpy.zeros(shp, dtype=dtype), name='memory')
-        self.base_layer = loadf(file)
-        self.add(self.base_layer)
-
-    _load_ = _load1_
-
     def build(self, input, input_shape=None):
         r"""
         Builds the layer with input expresstion `input`.
