@@ -208,6 +208,9 @@ class ParaLayer(CompositeLayer):
         >>> p = ParaLayer([SimpleLayer(10, 3), SimpleLayer(10, 2)])
         >>> len(p.sublayers)
         2
+        >>> p2 = test_saveload(p)
+        >>> len(p2.sublayers)
+        2
         """
         CompositeLayer.__init__(self, name, sublayers)
         self.sublayers = sublayers
