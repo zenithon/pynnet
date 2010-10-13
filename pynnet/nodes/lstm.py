@@ -2,154 +2,83 @@ from pynnet.nodes.base import *
 from pynnet.nlins import tanh, sigmoid
 from pynnet.nodes import SimpleNode, RecurrentWrapper
 
-__all__ = ['LSTMBlock']
+__all__ = ['lstm_block']
 
 Broad1 = T.Rebroadcast((1, True))
-Broad0 = T.Rebroadcast((0, True))
 
-class LSTMBlock(BaseNode):
+class CEC(BaseNode):
     r"""
-    An LSTM block of memory cells.
+    The CEC class for LSTMs.
 
-    Examples:
-    >>> l = LSTMBlock(20, 2)
+    See `lstm_block` or `lstm_block_peep` for user-friendly wrappers
+    or the code of these functions for example usage.
+
+    Inputs:
+    `map_in` -- (node, read-only) The mapping applied to the input
+                before going in the CEC.
+    `gate_in` -- (node, read-only) The gating function for input.
+    `gate_out` -- (node, read-only) The gating function for output.
 
     Attributes:
-    `map_in` -- (SimpleNode, read-only [you can modify attributes])
-                The mapping applied to the input before going in the CEC.
-    `gate_in` -- (SimpleNode, read-only) The gating function for input.
-    `gate_out` -- (SimpleNode, read-only) The gating function for output.
-    `h` -- (function, read-write) the nonlinearity applied to the
-           output of the CEC.
-    `cec` -- (Node, read-only) The central memory unit.  This is
-             where magic happens.
-    `peephole` -- (boolean, read-only) Reports whether the block was
-                  initialzed with a peephole from the CECs to the
-                  gates (cannot be changed after initialzation)
+    `cec` -- (shared var, read-only) The memory.
     """
-    def __init__(self, in_size, n_cells=1, g=tanh, h=tanh, peephole=False,
-                 name=None, dtype=theano.config.floatX, rng=numpy.random):
-        r"""
-        Tests:
-        >>> l = LSTMBlock(10, 2)
-        >>> l.map_in.W.value.shape
-        (10, 2)
-        >>> l2 = test_saveload(l)
-        >>> l.map_in.W.value.shape
-        (10, 2)
-        """
-        BaseNode.__init__(self, name)
-        self.peephole = peephole
-        self.map_in = SimpleNode(in_size, n_cells, nlin=g,
-                                  dtype=dtype, rng=rng)
-        if self.peephole:
-            in_size += n_cells
-        self.gate_in = SimpleNode(in_size, 1, nlin=sigmoid,
-                                   dtype=dtype, rng=rng)
-        self.gate_forget = SimpleNode(in_size, 1, nlin=sigmoid,
-                                       dtype=dtype, rng=rng)
-        self.cec = theano.shared(numpy.zeros((n_cells,), dtype=dtype), 
+    def __init__(self, input, gate_in, gate_forget, gate_out, size, name=None,
+                 dtype=theano.config.floatX):
+        BaseNode.__init__(self, [input, gate_in, gate_forget, gate_out], name)
+        self.cec = theano.shared(numpy.zeros((size,), dtype=dtype), 
                                  name='cec')
-        self.gate_out = SimpleNode(in_size, 1, nlin=sigmoid,
-                                    dtype=dtype, rng=rng)
     
     def clear(self):
-        val = self.cec.value
+        val = self.cec.value.copy()
         val[:] = 0
         self.cec.value = val
 
-    def build(self, input, input_shape=None):
+    def transform(self, input, gate_in, gate_forget, gate_out):
         r"""
-        Builds the node with input expresstion `input`.
-        
         Tests:
-        >>> l = LSTMBlock(12, 3, dtype='float32', peephole=False)
         >>> x = T.fmatrix('x')
-        >>> l.build(x, input_shape=(10, 12))
-        >>> l.params
-        [W, b, W, b, W, b, W, b]
-        >>> l.input
-        x
-        >>> l.output_shape
-        (10, 3)
-        >>> theano.pp(l.output)
-        '(Rebroadcast{?,1}(sigmoid(((x \\dot W) + b))) * <theano.scan.Scan object at ...>(?_steps, Rebroadcast{?,1}(sigmoid(((x \\dot W) + b))), (tanh(((x \\dot W) + b)) * Rebroadcast{?,1}(sigmoid(((x \\dot W) + b)))), cec))'
-        >>> f = theano.function([x], l.output)
-        >>> r = f(numpy.random.random((10, 12)))
+        >>> g = SimpleNode(x, 3, 1, dtype='float32', nlin=sigmoid)
+        >>> c = CEC(x, g, g, g, 3, dtype='float32')
+        >>> theano.pp(c.output)
+        '(Rebroadcast{?,1}(sigmoid(((x \\dot W) + b))) * <theano.scan.Scan object at ...>(?_steps, Rebroadcast{?,1}(sigmoid(((x \\dot W) + b))), (x * Rebroadcast{?,1}(sigmoid(((x \\dot W) + b)))), cec))'
+        >>> f = theano.function([x], c.output)
+        >>> r = f(numpy.random.random((4, 3)))
         >>> r.dtype
         dtype('float32')
         >>> r.shape
-        (10, 3)
-        >>> l.build(x)
-        >>> l.output_shape
-
-        # Now again with peephole=True
-        >>> l = LSTMBlock(12, 3, dtype='float32', peephole=True)
-        >>> x = T.fmatrix('x')
-        >>> l.build(x, input_shape=(10, 12))
-        >>> l.params
-        [W, b, W, b, W, b, W, b]
-        >>> l.input
-        x
-        >>> l.output_shape
-        (10, 3)
-        >>> theano.pp(l.output)
-        '(Rebroadcast{?,1}(sigmoid(((join(1, x, <theano.scan.Scan object at ...>(?_steps, x, tanh(((x \\dot W) + b)), cec, W, b, W, b)) \\dot W) + b))) * <theano.scan.Scan object at ...>(?_steps, x, tanh(((x \\dot W) + b)), cec, W, b, W, b))'
-        >>> f = theano.function([x], l.output)
-        >>> r = f(numpy.random.random((10, 12)))
-        >>> r.dtype
-        dtype('float32')
-        >>> r.shape
-        (10, 3)
-        >>> l.build(x)
-        >>> l.output_shape
+        (4, 3)
         """
-        self.input = input
-        self.map_in.build(input, input_shape)
-        if self.peephole:
-            def block(inp, cell_inp, outp):
-                inp = T.join(0, inp, outp)
-                if input_shape is None:
-                    ishp = None
-                else:
-                    ishp = (1, self.map_in.output_shape[1]+input_shape[1])
-                self.gate_in.build(inp, ishp)
-                self.gate_forget.build(inp, ishp)
-                return ((Broad0(self.gate_in.output)*cell_inp) + \
-                    (Broad0(self.gate_forget.output)*outp))
-            outs, upds = theano.scan(block,
-                                     sequences=[input, self.map_in.output],
-                                     outputs_info=[self.cec])
-            if input_shape is None:
-                oshp = None
-            else:
-                oshp = (input_shape[0], input_shape[1]+self.map_in.output_shape[1])
-            self.gate_out.build(T.join(1, input, outs), oshp)
-        else:
-            self.gate_in.build(input, input_shape)
-            final_in = self.map_in.output * Broad1(self.gate_in.output)
-            self.gate_forget.build(input, input_shape)
-        
-            def cecf(forget, cell_input, outp):
-                return outp * forget + cell_input
-            outs, upds = theano.scan(cecf,
-                                     sequences=[Broad1(self.gate_forget.output), final_in],
-                                     outputs_info=[self.cec])
+        final_in = input * Broad1(gate_in)
 
-            self.gate_out.build(input, input_shape)
+        def cecf(forget, cell_input, outp):
+            return outp * forget + cell_input
+
+        outs, upds = theano.scan(cecf,
+                                 sequences=[Broad1(gate_forget), final_in],
+                                 outputs_info=[self.cec])
 
         for s, u in upds.iteritems():
             s.default_update = u
-        
         self.cec.default_update = outs[-1]
 
-        if input_shape is None:
-            self.output_shape = None
-        else:
-            assert len(input_shape) == 2, "LSTM needs 2d input"
-            self.output_shape = self.map_in.output_shape
+        return Broad1(gate_out) * outs
 
-        self.output = Broad1(self.gate_out.output) * outs
-        self.params = self.gate_in.params + self.map_in.params + \
-                       self.gate_forget.params + self.gate_out.params
-        
+def lstm_block(input, in_size, n_cells, rng=numpy.random, 
+               dtype=theano.config.floatX):
+    r"""
+    An single LSTM block with memory cells sharing gates.
+
+    Examples:
+    >>> x = T.fmatrix('x')
+    >>> l = lstm_block(x, 20, 2)
+    >>> l2 = test_saveload(l)
+    """
+    map_in = SimpleNode(input, in_size, n_cells)
+    gate_in = SimpleNode(input, in_size, 1, nlin=sigmoid,
+                         dtype=dtype, rng=rng)
+    gate_forget = SimpleNode(input, in_size, 1, nlin=sigmoid,
+                             dtype=dtype, rng=rng)
+    gate_out = SimpleNode(input, in_size, 1, nlin=sigmoid,
+                          dtype=dtype, rng=rng)
+    block = CEC(map_in, gate_in, gate_forget, gate_out, n_cells, dtype=dtype)
+    return block
