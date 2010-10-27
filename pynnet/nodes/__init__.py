@@ -25,8 +25,8 @@ def transform(self, *inputs):
 In return it provides `output` and `params` attributes which are
 automatically computed when needed.
 """
-from simple import *
-from conv import *
-from autoencoder import *
-from recurrent import *
-from lstm import *
+from pynnet.nodes.simple import *
+from pynnet.nodes.conv import *
+from pynnet.nodes.autoencoder import *
+from pynnet.nodes.recurrent import *
+from pynnet.nodes.lstm import *
