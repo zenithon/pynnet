@@ -1,4 +1,4 @@
-from base import *
+from pynnet.nodes.base import *
 from pynnet.nlins import *
 
 __all__ = ['ReshapeNode', 'ConvNode', 'SharedConvNode', 'MaxPoolNode']

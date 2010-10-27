@@ -1,5 +1,5 @@
-from base import *
-from simple import SimpleNode
+from pynnet.nodes.base import *
+from pynnet.nodes.simple import SimpleNode
 from pynnet.nlins import *
 from pynnet.errors import cross_entropy
 

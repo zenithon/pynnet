@@ -1,4 +1,4 @@
-from base import *
+from pynnet.nodes.base import *
 
 # Since these nodes are more or less patches or fixes for small
 # problems we do not export them.  They should only be used explicitly

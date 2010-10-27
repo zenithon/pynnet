@@ -1,4 +1,4 @@
-from base import *
+from pynnet.nodes.base import *
 from pynnet.nodes import SimpleNode, SharedNode, ConvNode, SharedConvNode
 from pynnet.nlins import tanh
 from pynnet.errors import mse
