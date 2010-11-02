@@ -11,16 +11,14 @@ def runTests(mod):
 def test(name):
     predefs = dict(pynnet.__dict__)
     options = doctest.ELLIPSIS or doctest.DONT_ACCEPT_TRUE_FOR_1
-    print "Testing:", name
+    print >>sys.stderr, "Testing:", name
     __import__(name)
     doctest.testmod(sys.modules[name], extraglobs=predefs, optionflags=options)
 
 def cover(name):
     __import__(name)
     for meth in methods_of(sys.modules[name]):
-        if meth.__name__ in ['_save_', '__str__']:
-            continue
-        if meth.__name__.startswith('_load'):
+        if meth.__name__ in ['__str__']:
             continue
         if meth.__doc__ is None:
             print "*** No doc for:", meth.__name__
