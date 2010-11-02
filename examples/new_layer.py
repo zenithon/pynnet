@@ -1,51 +1,63 @@
-# In this example we will make a simple normalization layer.
+# In this example we will make a simple normalization node.
 # All output values will be in the 0-1 range.
 
 from pynnet import *
-from pynnet.layers.base import BaseLayer
+from pynnet.nodes.base import BaseNode
 import theano
 
-# All layers should inherit from BaseLayer (this is not actually enforced).
-class NormalizationLayer(BaseLayer):
-    # For the __init__ method, we should take any parameters that we will
-    # need while building the graph (apart from the input expression).
-    # Here we do not need anything.
-    def __init__(self):
-        # I know some python advice will tell you to use super().
-        # It is only required in the multiple inheritance diamond case.
-        # Since the code is engineered to avoid this case, we don't need it.
+# All nodes should inherit from BaseNode (this is not actually
+# enforced).
+class NormalizationNode(BaseNode):
+    # For the __init__ method, we should take any parameters that we
+    # will need while building the graph.  Here we do not need
+    # anything aside from the input expression.  You should always put
+    # any required inputs as the first arguments and put other
+    # required arguments after.
+    def __init__(self, input):
+        # I know some python advice will tell you to use super().  It
+        # is only required in the multiple inheritance diamond case.
+        # Since the code is engineered to avoid this case, we don't
+        # need it.
 
-        # Initialize the base class with a name.  Here we pass None to
-        # let BaseLayer come up with an apporpriate unique name based on
-        # the class name.  We could add a name parameter to the __init__
-        # method to let users choose their own name.
-        BaseLayer.__init__(self, None)
+        # Initialize the base class with a name and inputs.  Here we
+        # pass None to let BaseNode come up with an apporpriate unique
+        # name based on the class name.  We could add a name parameter
+        # to the __init__ method to let users choose their own name.
 
-    # This method has a forced signature which is the one below.
-    # In the method we have to set the required layer attributes.
-    def build(self, input, input_shape=None):
-        # keep a reference to the input expression
-        self.input = input
-        # our output is of the same size as the input
-        self.output_shape = input_shape
-        # we have no parameter that should be adjusted with training
-        self.params = []
-        # finally the work we do (this will only work with matrices)
-        temp = self.input - self.input.min().min()
-        self.output = temp / temp.max().max()
+        # The input is the one we collected form our parameter and is
+        # the value upon which we will work.
+        BaseNode.__init__(self, [input], None)
 
-    # As-is, this layer is usable.  It can also be saved and loaded
-    # correctly since it does not have any instance-specific
-    # parameters.
+        # Aside from the parameters we pass to BaseNode, there are
+        # special attributes which are used in the interface.  One of
+        # those is local_params which should be set to the list of
+        # parameter that should be adjusted by the gradient for this
+        # node.  Since we don't have any we can ignore it as the
+        # default is no parameters.
 
-# Now we can build networks using our new layer (and existing ones of course)
+        # This is also the place to set up any attributes that could
+        # be required by the transform() method below.  They can be
+        # collected from additional arguments in the constructor.
 
-normnet = NNet([NormalizationLayer()], error=errors.mse)
+    # This method has a simpel signature which takes all of our
+    # inputs, splitted apart.  In this case we only have one input.
+    # The inputs recieved here are theano expressions.
+    def transform(self, input):
+        # We return a theano expression that is the transformed
+        # version of what we want to do with the input.  We could
+        # refer to instance variables of our node if to provide
+        # customization if needed.
+        temp = input - input.min(-1).min(-1)
+        return temp / temp.max(-1).max(-1)
+        # The (-1) are to avoid theano warnings about a change in
+        # behavior for .max() and .min()
+
+# Now we can build networks using our new node (and existing ones of course)
 
 x = theano.tensor.matrix()
 y = theano.tensor.matrix()
 
-normnet.build(x, y)
+normnet = NNet(NormalizationNode(x), y, error=errors.mse)
 
 eval = theano.function([x], normnet.output)
 

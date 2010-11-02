@@ -30,49 +30,44 @@ testseq = [[0, 0, 0], [0, 1, 0], [1, 0, 1], [1, 0, 0], [0, 0, 1], [1, 0, 0], [0,
 testx = testseq
 testy = testseq[1:] + testseq[:1]
 
-rnet = NNet([SimpleLayer(3, 6),
-             RecurrentWrapper(SimpleLayer(12,6), (6,), name='rl'),
-             SimpleLayer(6, 3)], error=errors.mse)
-
-rl = rnet.get_layer('rl')
-
 x = theano.tensor.matrix('x')
 y = theano.tensor.matrix('y')
 
-rnet.build(x, y)
+map_in = SimpleNode(x, 3, 6)
+rn = RecurrentWrapper(map_in, lambda x_n: SimpleNode(x_n, 12, 6),
+                      outshp=(6,), name='rl')
+out = SimpleNode(rn, 6, 3)
+
+rnet = NNet(out, y, error=errors.mse)
 
 eval = theano.function([x], rnet.output)
 test = theano.function([x, y], rnet.cost)
 
-# we can build the same network multiple times and it will use 
-# the same parameters for each.  Here we use shared variables to go faster.
-
-rnet.build(trainx, trainy)
-train = theano.function([], rnet.cost, updates=trainers.get_updates(rnet.params, rnet.cost, 0.05))
+train = theano.function([], rnet.cost, updates=trainers.get_updates(rnet.params, rnet.cost, 0.05), givens={x: trainx, y: trainy})
 
 # Since we didn't do any training (yet) the net has poor performance
 print "Test at start:", test(testx, testy)
 
 # clear the memory before training
-rl.clear()
+rn.clear()
 
 # Now to do some training
 for _ in range(100):
     train()
     # we clear the memory between each training pass
-    rl.clear()
+    rn.clear()
 
 print "Test after 100:", test(testx, testy)
 
-rl.clear()
+rn.clear()
 
 # Do some more training
 for _ in range(900):
     train()
-    rl.clear()
+    rn.clear()
 
 print "Test after 1000:", test(testx, testy)
-rl.clear()
+rn.clear()
 
 # Let's see what we get
 print "Target:", testy

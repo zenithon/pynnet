@@ -7,17 +7,13 @@
 import theano
 from pynnet import *
 
-# We initialize an MLP with one hidden layer of two units.
-xornet = NNet([SimpleLayer(2,2), SimpleLayer(2,1)], error=errors.mse)
-
 sx = theano.tensor.matrix('x')
 sy = theano.tensor.matrix('y')
 
-# This call actually assembles the expressions for .output, .cost and .params
-# from the layers we have defined in the network.
-xornet.build(sx, sy)
+# We initialize an MLP with one hidden layer of two units.
+xornet = NNet(SimpleNode(SimpleNode(sx,2,2),2,1), sy, error=errors.mse)
 
-# We can then build functions from these expressions to use our network
+# We can build functions from expressions to use our network
 eval = theano.function([sx], xornet.output)
 test = theano.function([sx, sy], xornet.cost)
 train = theano.function([sx, sy], xornet.cost, 
