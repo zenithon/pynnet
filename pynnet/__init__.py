@@ -1,4 +1,4 @@
-from layers import *
+from nodes import *
 from net import *
 from base import load, loadf
 

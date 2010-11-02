@@ -3,65 +3,7 @@ import pynnet.base
 
 import copy
 
-__all__ = ['BaseNode', 'InputNode', 'prop']+pynnet.base.__all__
-
-class prop_meta(type):
-    r""" 
-    Metaclass to allow easy property specifications.  See doc for
-    `prop`.
-    """
-    def __new__(meta, class_name, bases, new_attrs):
-        r"""
-        :nodoc:
-
-        Tested by `prop`.
-        """
-        if bases == (object,):
-            # The prop class itself
-            return type.__new__(meta, class_name, bases, new_attrs)
-        fget = new_attrs.get('fget')
-        fset = new_attrs.get('fset')
-        fdel = new_attrs.get('fdel')
-        fdoc = new_attrs.get('__doc__')
-        return property(fget, fset, fdel, fdoc)
-
-class prop(object):
-    r"""
-    Allows easy specification of properties without cluttering the
-    class namespace.
-    
-    The set method is specified with 'fset', the get with 'fget' and
-    the del with 'fdel'.  All are optional.  Documentation for the
-    attribute is taken from the class documentation, if specified.
-    Any other attributes of the class are ignored and will not be
-    preserved.
-
-    The 'self' argument these methods take refer to the enclosing
-    class of the attribute, not the attribute 'class'.
-    
-    Example/test:
-    >>> class Angle(object):
-    ...     def __init__(self, rad):
-    ...         self._rad = rad
-    ...     
-    ...     class rad(prop):
-    ...         r'The angle in radians.'
-    ...         def fget(self): # here self is an 'Angle' object, not 'rad'
-    ...             return self._rad
-    ...         def fset(self, val): # same here
-    ...             if isinstance(val, Angle):
-    ...                 val = val.rad
-    ...             self._rad = val
-    >>> Angle.rad.__doc__
-    'The angle in radians.'
-    >>> a = Angle(0.0)
-    >>> a.rad
-    0.0
-    >>> a.rad = 1.5
-    >>> a.rad
-    1.5
-    """
-    __metaclass__ = prop_meta
+__all__ = ['BaseNode', 'InputNode']+pynnet.base.__all__
 
 cdict = dict()
 
