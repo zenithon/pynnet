@@ -38,10 +38,22 @@ def zipadd(fn, zf, name):
             os.remove(fname)
 
 class PersSave(object):
+    r"""
+    Part of the implementation of the numpy pickle hack.  
+
+    Used in zsave below.
+    """
     def __init__(self, zf):
+        r"""
+        :nodoc:
+        """
         self.zf = zf
         self.count = 0
+
     def __call__(self, obj):
+        r"""
+        :nodoc:
+        """
         if isinstance(obj, numpy.ndarray):
             name = 'array-'+str(self.count)
             self.count += 1
@@ -53,14 +65,29 @@ class PersSave(object):
             return None
 
 class PersLoad(object):
+    r"""
+    Part of the implementation of the numpy pickle hack.
+    
+    Used in zload below.
+    """
     def __init__(self, zf):
+        r"""
+        :nodoc:
+        """
         self.zf = zf
     def __call__(self,id):
+        r"""
+        :nodoc:
+        """
         return numpy.lib.format.read_array(self.zf.open(id))
 
 def zsave(obj, file):
     r"""
     Saves `obj` to `file` (which is a file-like object).
+
+    This uses pickle with a special case for numpy matrices to avoid
+    using a lot of memory (and often crashing) while saving big
+    matrices.
 
     :notests:
     """
@@ -74,6 +101,8 @@ def zsave(obj, file):
 def zload(file):
     r"""
     Loads a save created with `zsave`.
+
+    See `zsave` for why this is done.
 
     :notests:
     """
