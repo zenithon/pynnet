@@ -4,9 +4,8 @@ nullfile = file(os.devnull, "wb")
 
 def runTests(mod):
     for (_, name, ispkg) in pkgutil.walk_packages(mod.__path__, mod.__name__+'.'):
-        if not ispkg:
-            test(name)
-            cover(name)
+        test(name)
+        cover(name)
 
 def test(name):
     predefs = dict(pynnet.__dict__)
@@ -18,7 +17,7 @@ def test(name):
 def cover(name):
     __import__(name)
     for meth in methods_of(sys.modules[name]):
-        if meth.__name__ in ['__str__']:
+        if meth.__name__ in ('__str__',):
             continue
         if meth.__doc__ is None:
             print "*** No doc for:", meth.__name__

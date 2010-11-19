@@ -4,36 +4,77 @@ import sys
 
 __all__ = ['MemoryDataset', 'ListDataset', 'dset']
 
-class MemoryDataset(theano.Op):
+class MemoryDataset(object):
+    r"""
+    Fake op to provide batches of examples to a graph based on an index.
+
+    Tests:
+    >>> class fake(object):
+    ...    def __init__(self, d):
+    ...        self.data = d
+    >>> o = fake(numpy.random.random((100, 10)))
+    >>> md = MemoryDataset(o, 10)
+    >>> i = T.iscalar()
+    >>> out = md(i)
+    >>> f = theano.function([i], out)
+    >>> (f(1) == o.data[10:20]).all()
+    True
+    """
     def __init__(self, dataset, batch_size):
+        r"""
+        :nodoc:
+        """
         self.data = theano.shared(dataset.data)
         self.batch_size = batch_size
 
-    def make_node(self, idx):
-        idx_ = theano.as_tensor_variable(idx)
-        return theano.Apply(self,
-                            inputs = [idx_],
-                            outputs = [self.data.type()])
+    def __call__(self, idx):
+        r"""
+        :nodoc:
+        """
+        return self.data[idx*self.batch_size:(idx+1)*self.batch_size]
 
-    def preform(self, node, inputs, output_storage):
-        idx, = inputs
-        self.output_storage[0][0] = self.data[idx*self.batch_size:(idx+1)*self.batch_size]
-
-# This is for datasets which are lists of sequences
 class ListDataset(theano.Op):
+    r"""
+    Theano op to provides examples to a graph from a list.
+
+    This is mainly for datasets that are a list of sequences.
+
+    Tests:
+    >>> class fake(object):
+    ...    def __init__(self, d):
+    ...        self.data = d
+    >>> o = fake([numpy.random.random((2, 3)),
+    ...           numpy.random.random((2, 3))])
+    >>> md = ListDataset(o)
+    >>> i = T.iscalar()
+    >>> out = md(i)
+    >>> f = theano.function([i], out)
+    >>> (f(1) == o.data[1]).all()
+    True
+    """
     def __init__(self, dataset):
-        self.data = theano.Constant(dataset.data)
+        r"""
+        :nodoc:
+        """
+        self.data = dataset.data
         
     def make_node(self, idx):
-        idx_ = theano.as_tensor_variable(idx)
+        r"""
+        :nodoc:
+        """
+        idx_ = T.as_tensor_variable(idx)
+        out_ty = T.TensorType(self.data[0].dtype,
+                              broadcastable=(False,)*len(self.data[0].shape))
         return theano.Apply(self,
                             inputs = [idx_],
-                            outputs = [T.TensorType(self.data[0].dtype,
-                              broadcastable=(False,)*len(self.data[0].shape))])
+                            outputs = [out_ty()])
 
-    def preform(self, node, inputs, output_storage):
+    def perform(self, node, inputs, output_storage):
+        r"""
+        :nodoc:
+        """
         idx, = inputs
-        self.output_storage[0][0] = self.data[idx]
+        output_storage[0][0] = self.data[idx]
 
 class dset(object):
     def __init__(self, module, name, shared_class=MemoryDataset):
