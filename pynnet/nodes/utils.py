@@ -25,21 +25,10 @@ i = iClass()
 
 class SplitNode(BaseNode):
     r"""
-    Class to split an input expression into one or more pieces.
+    Node to select a portion of the input.
+
+    See the `split` function for a user-friendly version.
     
-    The regions are specified by a list of tuples representing indexes
-    into the input. The split regions may overlap.
-
-    The first split is the output of the main class and the other will
-    be the outputs of the subnodes accessible though `helpers`.
-
-    Note: To use the convinient syntax in the examples below import
-    `i` from this module along with SplitNode.  Otherwise you can
-    pass instances of `slice` with the appropriate parameters.
-
-    Note2: This class doesn't compute its output shape in any case.
-    (since I am lazy)  If you want to do it I will be glad.
-
     Examples:
     >>> x = T.ivector()
     >>> s = SplitNode(x, i[:,0])
@@ -51,8 +40,6 @@ class SplitNode(BaseNode):
     """
     def __init__(self, input, split, name=None):
         r"""
-        Initialize fields.
-        
         Tests:
         >>> x = T.fmatrix('x')
         >>> s = SplitNode(x, i[1:,:])
@@ -66,8 +53,6 @@ class SplitNode(BaseNode):
 
     def transform(self, inp):
         r"""
-        Build node with input expression `input`.
-        
         Tests:
         >>> x = T.fmatrix('x')
         >>> s = SplitNode(x, i[1:3])
@@ -78,6 +63,11 @@ class SplitNode(BaseNode):
 
 def split(input, splits, name=None):
         r"""
+        Splits an input into one or more sub-regions.
+
+        The sub-region can overlap and do not have to be in any
+        particular order.
+
         Tests:
         >>> x = T.fmatrix('x')
         >>> s1, s2 = split(x, [i[0,2], i[1:,:]])
@@ -92,5 +82,23 @@ def split(input, splits, name=None):
             return tuple(SplitNode(input, s, '%s-%d'%(name, i)) for i, s in enumerate(splits))
 
 class JoinNode(BaseNode):
+    r"""
+    Node to join one or more nodes together.
+
+    Input nodes must have the same dimensions apart from the first one.
+    """
+    def __init__(self, inputs, name=None):
+        r"""
+        :nodoc:
+        """
+        BaseNode.__init__(self, inputs, name)
+
     def transform(self, *inputs):
+        r"""
+        Tests:
+        >>> x, y, z = T.fmatrices('xyz')
+        >>> j = JoinNode([x, y, z])
+        >>> theano.pp(j.output)
+        'join(0, x, y, z)'
+        """
         return T.join(0, *inputs)
