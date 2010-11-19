@@ -13,14 +13,42 @@ class DelayNode(BaseNode):
     
     Examples:
     >>> x = T.fmatrix()
-    >>> d = DelayNode(x, 3, [[1, 2], [2, 2], [2, 1]])
+    >>> d = DelayNode(x, 3, numpy.array([[1, 2], [2, 2], [2, 1]], dtype='float32'))
     """
     def __init__(self, input, delay, init_vals, name=None):
+        r"""
+        >>> x = T.matrix()
+        >>> d = DelayNode(x, 1, numpy.array([[1, 2, 3]], dtype='float32'))
+        >>> d.delay
+        1
+        >>> d.memory.value
+        array([[ 1.,  2.,  3.]], dtype=float32)
+        """
         BaseNode.__init__(self, [input], name)
         self.delay = delay
         self.memory = theano.shared(init_vals, 'delaymem')
 
     def transform(self, input):
+        r"""
+        Tests:
+        >>> x = T.fmatrix('x')
+        >>> d = DelayNode(x, 2, numpy.random.random((2, 2)).astype('float32'))
+        >>> d.params
+        []
+        >>> theano.pp(d.output)
+        'join(0, delaymem, x)[:-2]'
+        >>> f = theano.function([x], d.output)
+        >>> inp = numpy.random.random((5, 2)).astype('float32')
+        >>> v = f(inp)
+        >>> v.dtype
+        dtype('float32')
+        >>> v.shape
+        (5, 2)
+        >>> (d.memory.value == inp[-2:]).all()
+        True
+        >>> (v[2:] == inp[:-2]).all()
+        True
+        """
         j = T.join(0, self.memory, input)
         self.memory.default_update = j[-self.delay:]
         return j[:-self.delay]
@@ -53,7 +81,6 @@ class RecurrentWrapper(BaseNode):
         r"""
         Tests:
         >>> x = T.fmatrix('x')
-        >>> x_n = InputNode(x)
         >>> r = RecurrentWrapper(x, lambda x_n: SimpleNode(x_n, 10, 5, dtype='float32'),
         ...                      outshp=(5,), dtype='float32')
         >>> r.memory.value
@@ -69,17 +96,14 @@ class RecurrentWrapper(BaseNode):
 
     def clear(self):
         r"""
-        Resets the memory to initial value.
+        Resets the memory to the initial value.
         """
         self.memory.value = self.mem_init.copy()
     
     def transform(self, input):
         r"""
-        Builds the node with input expresstion `input`.
-        
         Tests:
         >>> x = T.fmatrix('x')
-        >>> x_n = InputNode(x)
         >>> r = RecurrentWrapper(x, lambda inp: SimpleNode(inp, 5, 2, dtype='float32'),
         ...                      outshp=(2,), dtype='float32')
         >>> r.params
