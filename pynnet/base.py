@@ -117,7 +117,6 @@ def test_saveload(obj):
     
     :notests:
     """
-    import StringIO
     f = StringIO.StringIO()
     obj.savef(f)
     f2 = StringIO.StringIO(f.getvalue())
