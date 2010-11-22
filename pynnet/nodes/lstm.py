@@ -24,11 +24,17 @@ class CEC(BaseNode):
     """
     def __init__(self, input, gate_in, gate_forget, gate_out, size, name=None,
                  dtype=theano.config.floatX):
+        r"""
+        :nodoc:
+        """
         BaseNode.__init__(self, [input, gate_in, gate_forget, gate_out], name)
         self.cec = theano.shared(numpy.zeros((size,), dtype=dtype), 
                                  name='cec')
     
     def clear(self):
+        r"""
+        Resets the memory to the initial value.
+        """
         val = self.cec.value.copy()
         val[:] = 0
         self.cec.value = val
@@ -39,6 +45,8 @@ class CEC(BaseNode):
         >>> x = T.fmatrix('x')
         >>> g = SimpleNode(x, 3, 1, dtype='float32', nlin=sigmoid)
         >>> c = CEC(x, g, g, g, 3, dtype='float32')
+        >>> g.params
+        [W, b]
         >>> theano.pp(c.output)
         '(Rebroadcast{?,1}(sigmoid(((x \\dot W) + b))) * <theano.scan.Scan object at ...>(?_steps, Rebroadcast{?,1}(sigmoid(((x \\dot W) + b))), (x * Rebroadcast{?,1}(sigmoid(((x \\dot W) + b)))), cec))'
         >>> f = theano.function([x], c.output)
