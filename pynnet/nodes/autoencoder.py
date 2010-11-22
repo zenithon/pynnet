@@ -76,7 +76,7 @@ def autoencoder(input, n_in, n_out, tied=False, nlin=tanh,
     >>> enc.params
     [W, b]
     >>> dec.params
-    [b2, W, b]
+    [W, b, b2]
     >>> enc.nlin
     <function tanh at ...>
     >>> theano.pp(dec.W)

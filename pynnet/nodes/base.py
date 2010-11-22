@@ -51,17 +51,14 @@ class BaseNode(BaseObject):
         self.name = name
         self.inputs = [InputNode(input) if not isinstance(input, BaseNode)
                        else input for input in inputs]
-        self._build_dict()
         self.local_params = []
 
-    def _build_dict(self):
+    def __setattr__(self, name, val):
         r"""
-        Tested by __init__ and get_node.
+        Clear the cache on attribute setting.
         """
-        self._dict = dict()
-        self._dict.update((l.name, l) for l in self.inputs)
-        for l in self.inputs:
-            self._dict.update(l._dict)
+        BaseObject.__setattr__(self, '_cache', dict())
+        BaseObject.__setattr__(self, name, val)
 
     def get_node(self, name):
         r"""
@@ -97,16 +94,32 @@ class BaseNode(BaseObject):
         else:
             res = copy.copy(self)
             res.inputs = [i.replace(replace_map) for i in res.inputs]
-            res._build_dict()
             return res
-    
+
+    class _dict(prop):
+        def fget(self):
+            if 'dict' not in self._cache:
+                d = dict()
+                d.update((l.name, l) for l in self.inputs)
+                for l in self.inputs:
+                    d.update(l._dict)
+                self._cache['dict'] = d
+            return self._cache['dict']
+
     class output(prop):
         def fget(self):
-            return self.transform(*[input.output for input in self.inputs])
+            if 'output' not in self._cache:
+                self._cache['output'] = self.transform(*[input.output for input in self.inputs])
+            return self._cache['output']
 
     class params(prop):
         def fget(self):
-            return self.local_params + sum((i.params for i in self.inputs), [])
+            if 'params' not in self._cache:
+                s = set(self.local_params)
+                for i in self.inputs:
+                    s.update(i.params)
+                self._cache['params'] = s
+            return sorted(self._cache['params'], key=repr)
 
     def transform(self, *input_vars):
         r"""
