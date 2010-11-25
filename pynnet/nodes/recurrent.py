@@ -127,7 +127,8 @@ class RecurrentWrapper(BaseNode):
         True
         """
         def f(inp, mem):
-            i = InputNode(T.unbroadcast(T.shape_padleft(T.join(0,inp,mem)),0))
+            i = InputNode(T.unbroadcast(T.shape_padleft(T.join(0,inp,mem)),0),
+                          allow_complex=True)
             g = self.subgraph_builder(i)
             return g.output[0]
         

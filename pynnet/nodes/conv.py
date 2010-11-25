@@ -204,6 +204,8 @@ class ConvNode(SharedConvNode):
         >>> c2 = test_saveload(c)
         >>> c2.filter_shape
         (3, 1, 5, 5)
+        >>> c.params
+        [b, filter]
         """
         filter_shape = (num_filt, num_in)+filter_size
         w_range = 1./numpy.sqrt(numpy.prod(filter_size)*num_filt)
@@ -213,9 +215,9 @@ class ConvNode(SharedConvNode):
         bval = rng.uniform(low=-.5, high=.5,
                            size=(num_filt,)).astype(dtype)
         b = theano.shared(value=bval, name='b')
-        self.local_params = [filter, b]
         SharedConvNode.__init__(self, input, filter, b, filter_shape, 
                                  nlin=nlin, mode=mode, name=name)
+        self.local_params = [filter, b]
 
 class MaxPoolNode(BaseNode):
     r"""

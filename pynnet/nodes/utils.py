@@ -48,8 +48,8 @@ class SplitNode(BaseNode):
         >>> s.params
         []
         """
-        self.split = split
         BaseNode.__init__(self, [input], name)
+        self.split = split
 
     def transform(self, inp):
         r"""

@@ -1,6 +1,8 @@
 from pynnet.base import *
 import pynnet.base
 
+import warnings
+
 import copy
 
 __all__ = ['BaseNode', 'InputNode']+pynnet.base.__all__
@@ -43,6 +45,7 @@ class BaseNode(BaseObject):
         >>> all([k == v.name for k,v in c._dict.iteritems()])
         True
         """
+        self._cache = dict()
         if name is None:
             cname = type(self).__name__
             count = cdict.setdefault(type(self), 1)
@@ -57,8 +60,8 @@ class BaseNode(BaseObject):
         r"""
         Clear the cache on attribute setting.
         """
-        BaseObject.__setattr__(self, '_cache', dict())
         BaseObject.__setattr__(self, name, val)
+        self._cache.clear()
 
     def get_node(self, name):
         r"""
@@ -158,7 +161,7 @@ class InputNode(BaseNode):
     >>> x_l = InputNode(x, 'x')
     >>> y_l = InputNode(T.ivector())
     """
-    def __init__(self, expr, name=None):
+    def __init__(self, expr, allow_complex=False, name=None):
         r"""
         >>> x = InputNode(T.fmatrix())
         >>> x.name
@@ -167,6 +170,8 @@ class InputNode(BaseNode):
         >>> x.name != y.name
         True
         """
+        if not allow_complex and expr.owner is not None:
+            warnings.warn("Passing a theano expression to InputNode might be a bug\nUse allow_complex=True to silence this warning.", RuntimeWarning)
         BaseNode.__init__(self, [], name)
         self.expr = expr
 
@@ -179,3 +184,15 @@ class InputNode(BaseNode):
         'x'
         """
         return self.expr
+
+    def __hash__(self):
+        r"""
+        :nodoc:
+        """
+        return hash(self.expr)
+
+    def __eq__(self, other):
+        r"""
+        :nodoc:
+        """
+        return type(self) == type(other) and self.expr == other.expr
