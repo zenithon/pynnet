@@ -1,5 +1,4 @@
-from base import *
-import theano.tensor as T
+from pynnet.base import *
 
 __all__ = ['tanh', 'sigmoid', 'softmax', 'none']
 

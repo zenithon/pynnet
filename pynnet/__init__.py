@@ -1,6 +1,6 @@
+from base import load, loadf
 from nodes import *
 from net import *
-from base import load, loadf
 
 import nlins
 import errors
