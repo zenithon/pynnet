@@ -11,7 +11,7 @@ def tanh(x):
     >>> exp = tanh(x)
     >>> theano.pp(exp)
     'tanh(x)'
-    >>> f = theano.function([x], exp)
+    >>> f = theano.function([x], exp, allow_input_downcast=True)
     >>> inp = numpy.random.random((3, 5))
     >>> r = f(inp)
     >>> r.shape
@@ -30,7 +30,7 @@ def sigmoid(x):
     >>> exp = sigmoid(x)
     >>> theano.pp(exp)
     'sigmoid(x)'
-    >>> f = theano.function([x], exp)
+    >>> f = theano.function([x], exp, allow_input_downcast=True)
     >>> inp = numpy.random.random((3, 5))
     >>> r = f(inp)
     >>> r.shape
@@ -49,7 +49,7 @@ def softmax(x):
     >>> exp = softmax(x)
     >>> theano.pp(exp)
     'Softmax(x)'
-    >>> f = theano.function([x], exp)
+    >>> f = theano.function([x], exp, allow_input_downcast=True)
     >>> inp = numpy.random.random((3, 5))
     >>> r = f(inp)
     >>> r.shape
@@ -68,7 +68,7 @@ def none(x):
     >>> exp = none(x)
     >>> theano.pp(exp)
     'x'
-    >>> f = theano.function([x], exp)
+    >>> f = theano.function([x], exp, allow_input_downcast=True)
     >>> inp = numpy.random.random((3, 5))
     >>> r = f(inp)
     >>> r.shape

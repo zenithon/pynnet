@@ -30,7 +30,7 @@ def nll(os, y):
     >>> out = nll(os, y)
     >>> theano.pp(out)
     '(-(sum(<theano.tensor.basic.AdvancedSubtensor object at ...>(log(os), ARange(0, y.shape[0], 1), y)) / float32(<theano.tensor.basic.AdvancedSubtensor object at ...>(log(os), ARange(0, y.shape[0], 1), y).shape)[0]))'
-    >>> f = theano.function([os, y], out)
+    >>> f = theano.function([os, y], out, allow_input_downcast=True)
     >>> r = f(numpy.random.random((10, 10)), numpy.random.randint(0, 10, size=(10,)))
     >>> r.shape
     ()

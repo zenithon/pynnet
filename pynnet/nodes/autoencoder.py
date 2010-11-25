@@ -43,7 +43,7 @@ class CorruptNode(BaseNode):
         >>> c = CorruptNode(x, 0.25)
         >>> theano.pp(c.output)
         '(x * RandomFunction{binomial}(<RandomStateType>, x.shape, 1, 0.75))'
-        >>> f = theano.function([x], c.output)
+        >>> f = theano.function([x], c.output, allow_input_downcast=True)
         >>> r = f(numpy.random.random((10, 12)))
         >>> r.dtype
         dtype('float32')

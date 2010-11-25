@@ -37,7 +37,7 @@ class DelayNode(BaseNode):
         []
         >>> theano.pp(d.output)
         'join(0, delaymem, x)[:-2]'
-        >>> f = theano.function([x], d.output)
+        >>> f = theano.function([x], d.output, allow_input_downcast=True)
         >>> inp = numpy.random.random((5, 2)).astype('float32')
         >>> v = f(inp)
         >>> v.dtype
@@ -110,7 +110,7 @@ class RecurrentWrapper(BaseNode):
         [W, b]
         >>> theano.pp(r.output)
         '<theano.scan.Scan object at ...>(?_steps, x, memory, W, b)'
-        >>> f = theano.function([x], r.output)
+        >>> f = theano.function([x], r.output, allow_input_downcast=True)
         >>> v = f(numpy.random.random((4, 3)))
         >>> v.dtype
         dtype('float32')
@@ -119,7 +119,7 @@ class RecurrentWrapper(BaseNode):
         >>> (r.memory.value == v[-1]).all()
         True
         >>> r=RecurrentWrapper(x, lambda inp: RecurrentWrapper(inp, lambda inp2: SimpleNode(inp2, 6,2), outshp=(2,)), outshp=(2,))
-        >>> f = theano.function([x], r.output)
+        >>> f = theano.function([x], r.output, allow_input_downcast=True)
         >>> v = f(numpy.random.random((3, 2)))
         >>> v.shape
         (3, 2)
