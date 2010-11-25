@@ -19,7 +19,7 @@ class BaseNode(BaseObject):
 
     Attributes:
     `name` -- (string, read-only) the name of the node (unique)
-    `inputs` -- (list, read-only) the list of inputs to the node
+    `inputs` -- (tuple, read-write) the list of inputs to the node
     """
     def __init__(self, inputs, name):
         r"""
@@ -49,8 +49,8 @@ class BaseNode(BaseObject):
             name = '%s%d'%(cname, count)
             cdict[type(self)] += 1
         self.name = name
-        self.inputs = [InputNode(input) if not isinstance(input, BaseNode)
-                       else input for input in inputs]
+        self.inputs = tuple(InputNode(input) if not isinstance(input, BaseNode)
+                            else input for input in inputs)
         self.local_params = []
 
     def __setattr__(self, name, val):
@@ -93,7 +93,7 @@ class BaseNode(BaseObject):
             return replace_map[self]
         else:
             res = copy.copy(self)
-            res.inputs = [i.replace(replace_map) for i in res.inputs]
+            res.inputs = tuple(i.replace(replace_map) for i in res.inputs)
             return res
 
     class _dict(prop):
@@ -120,6 +120,13 @@ class BaseNode(BaseObject):
                     s.update(i.params)
                 self._cache['params'] = s
             return sorted(self._cache['params'], key=repr)
+
+    class inputs(prop):
+        def fget(self):
+            return self._inputs
+
+        def fset(self, val):
+            self._inputs = tuple(val)
 
     def transform(self, *input_vars):
         r"""
