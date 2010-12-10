@@ -33,7 +33,7 @@ class SharedNode(BaseNode):
               restriction any computation can be preformed on the
               input.  This is saved with the node.
     """
-    def __init__(self, input, W, b, nlin=tanh, rng=numpy.random, name=None):
+    def __init__(self, input, W, b, nlin=tanh, name=None):
         r"""
         Tests:
         >>> W = T.fmatrix()
@@ -117,5 +117,5 @@ class SimpleNode(SharedNode):
         W = theano.shared(value=W_values, name='W')
         b_values = numpy.zeros((n_out,), dtype=dtype)
         b = theano.shared(value=b_values, name='b')
-        SharedNode.__init__(self, input, W, b, nlin=nlin, rng=rng, name=name)
+        SharedNode.__init__(self, input, W, b, nlin=nlin, name=name)
         self.local_params = [self.W, self.b]
