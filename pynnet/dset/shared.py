@@ -1,30 +1,32 @@
 from pynnet.base import *
-
+from pynnet.dset import DataRef
 import sys
 
-__all__ = ['MemoryDataset', 'ListDataset']
+def shared(value, **kwargs)
+    if type(value) is not DataRef:
+        def index_shared(idx):
+            return value[idx]
+        return index_shared
+    return value.dset.shared_class(value, **kwargs)
+
+def load_shared(klass, dataref, kwargs):
+    return klass(dataref **kwargs)
 
 class SharedBase(theano.Op):
-    def __init__(self, dsetref, dataid=None, **kwargs):
-        self.dsetref = dsetref
-        self.dataid = dataid
-        self.data = self.dsetref.get_data(self.dataid)
+    def __init__(self, dataref, **kwargs):
+        self.dataref = dataref
+        self.kwargs = kwargs
         self.setup(**kwargs)
-
+    
     def make_node(self, idx):
         idx_ = T.as_tensor_variable(idx)
         return theano.Apply(self,
                             inputs = [idx_],
                             outputs = self.out_types)
     
-    def __getstate__(self):
-        d = self.__dict__.copy()
-        del d['data']
-        return d
-
-    def __getstate__(self, state):
-        self.__dict__.update(state)
-        self.data = self.dsetref.get_data(self.dataid)
+    def __reduce__(self):
+        return load_shared, \
+            (self.__class__, self.dataref, self.kwargs)
 
 class MemoryDataset(SharedBase):
     r"""
@@ -52,13 +54,6 @@ class MemoryDataset(SharedBase):
         self.data = theano.shared(data)
         self.out_types = [self.data.type]
 
-    def __setstate__(self, state):
-        r"""
-        :nodoc:
-        """
-        SharedBase.__setstate__(self, state)
-        self.data = theano.shared(data)
-
     def _as_CudaNdarrayVariable(self):
         r"""
         :nodoc:
@@ -71,6 +66,8 @@ class MemoryDataset(SharedBase):
         """
         idx, = inputs
         d = self.data.get_value(borrow=True, return_internal_type=True)
+        n = int(d.shape[0]/self.batch_size)
+        idx %= n
         output_storage[0][0] = d[idx*self.batch_size:(idx+1)*self.batch_size]
 
 class ListDataset(SharedBase):
@@ -104,4 +101,4 @@ class ListDataset(SharedBase):
         :nodoc:
         """
         idx, = inputs
-        output_storage[0][0] = self.data[idx]
+        output_storage[0][0] = self.data[idx%len(self.data)]

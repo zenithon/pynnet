@@ -2,38 +2,52 @@ from pynnet.base import *
 
 import imp
 
+__all__ = ['load_dataset', 'DsetRef', 'DataRef']
 
-def load_dw(stream, name, part, kwargs):
-    return stream.get(name, part, **kwargs)
-
-import copy_reg
-copy_reg.constructor(load_dw)
-
-class DataWrapper(object):
-    __slots__ = ('stream', 'name', 'part', 'kwargs', 'data')
-    def __init__(self, stream, name, part, kwargs):
-        self.stream = stream
+class DsetRef(object):
+    __slots__ = ('name', 'part', 'data')
+    def __init__(self, name, part, shared_class=None):
         self.name = name
         self.part = part
-        self.kwargs = kwargs
-        self.mod = load_dset(self.stream._path, self.name)
+        if shared_class:
+            self.shared_class = shared_class
+        else:
+            self.shared_class = get_dset(self.name).shared_class
+        self.data = get_dset(self.name).get(part)
 
-    def get_data(self):
-        getattr(self.mod, self.part)
-
-    def _as_TensorVariable(self)
-        s = self.mod.shared(self, self.kwargs)
-        return s(self.stream._counter)
+    def __getitem__(self, portion):
+        return DataRef(self, portion)
 
     def __reduce__(self):
-        return (load_dw, (self.stream, self.name, self.part, self.kwargs))
+        return DsetRef, (self.name, self.part)
+
+class DataRef(object):
+    __slots__ = ('dset', 'portion', 'data')
+    def __init__(self, dset, portion):
+        self.dset = dset
+        self.portion = portion
+        self.data = dset.data[portion]
+
+    def _as_TensorVariable(self):
+        return T.as_tensor_variable(self.data)
+
+    def __reduce__(self):
+        return DataRef, (self.dset, self.portion)
+
+def load_dataset(name, part, portion=None):
+    ref = DataRef(name, part)
+    if portion:
+        return ref[portion]
+    else:
+        return ref
 
 _dset_cache = dict()
+dset_path = ['.']
 
-def load_dset(path, name):
+def get_dset(name):
     if name not in _dset_cache:
         try:
-            fp, pathname, descr = imp.find_module(name, path)
+            fp, pathname, descr = imp.find_module(name, dset_path)
         except ImportError:
             raise AttributeError('No such dataset: ', + name)
         try:
@@ -45,18 +59,3 @@ def load_dset(path, name):
                 fp.close()
         _dset_cache[name] = mod
     return _dset_cache[name]
-
-class DatasetStream(object):
-    def __init__(self, path):
-        self._path = path
-        self._counter = theano.shared(0)
-        self._counter.default_update = self._counter + 1
-
-    def get(name, part, **kwargs):
-        return DataWrapper(self, name, part, kwargs)
-    
-    def seek(self, pos):
-        self._counter.value = pos
-    
-    def tell(self):
-        return int(self._counter.value)
