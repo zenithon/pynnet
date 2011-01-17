@@ -35,7 +35,11 @@ def zipadd(fn, zf, name):
     finally:
         if fp:
             fp.close()
+        try:
             os.remove(fname)
+        except OSError:
+            # if there was an error creating the file, it will not be removable
+            pass
 
 class PersSave(object):
     r"""
