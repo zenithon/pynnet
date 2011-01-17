@@ -2,7 +2,7 @@ from pynnet.base import *
 from pynnet.dset import DataRef
 import sys
 
-def shared(value, **kwargs)
+def shared(value, **kwargs):
     if type(value) is not DataRef:
         def index_shared(idx):
             return value[idx]

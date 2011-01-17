@@ -46,7 +46,7 @@ class MultiFile(object):
         self._buf = self._buf[pos:]
         return res
 
-    def _buffer(self, size)
+    def _buffer(self, size):
         if len(self._buf) < size:
             self._read_cur(size - len(self._buf))
             while len(self._buf) < size and self._next_file():
