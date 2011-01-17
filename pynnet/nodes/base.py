@@ -112,8 +112,14 @@ class BaseNode(BaseObject):
     class output(prop):
         def fget(self):
             if 'output' not in self._cache:
-                self._cache['output'] = self.transform(*[input.output for input in self.inputs])
+                self._cache['output'] = self.transform(*[i.output for i in self.inputs])
             return self._cache['output']
+
+    def _as_TensorVariable(self):
+        r"""
+        Theano function to be able to use nodes directly in a graph.
+        """
+        return self.output
 
     class params(prop):
         def fget(self):
