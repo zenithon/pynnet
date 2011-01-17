@@ -8,6 +8,8 @@ class SharedBase(theano.Op):
     def __init__(self, dataref, **kwargs):
         self.dataref = dataref
         self.kwargs = kwargs
+
+        self.data = self.dataref.data
         self.setup(**kwargs)
     
     def make_node(self, idx):
@@ -28,10 +30,8 @@ class MemoryDataset(SharedBase):
     >>> class fake(object):
     ...    def __init__(self, d):
     ...        self.data = d
-    ...    def get_data(self, id):
-    ...        return self.data
     >>> o = fake(numpy.random.random((100, 10)))
-    >>> md = MemoryDataset(o, None, batch_size=10)
+    >>> md = MemoryDataset(o, batch_size=10)
     >>> i = T.iscalar()
     >>> out = md(i)
     >>> f = theano.function([i], out)
@@ -43,8 +43,8 @@ class MemoryDataset(SharedBase):
         :nodoc:
         """
         self.batch_size = batch_size
-        self.data = theano.shared(data)
-        self.out_types = [self.data.type]
+        self.data = theano.shared(self.data)
+        self.out_types = [self.data.type()]
 
     def _as_CudaNdarrayVariable(self):
         r"""
@@ -86,7 +86,7 @@ class ListDataset(SharedBase):
         :nodoc:
         """
         self.out_types = [T.TensorType(self.data[0].dtype,
-                                       broadcastable=(False,)*len(self.data[0].shape))]
+                                       broadcastable=(False,)*len(self.data[0].shape))()]
     
     def perform(self, node, inputs, output_storage):
         r"""
