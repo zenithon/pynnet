@@ -1,6 +1,6 @@
 from pynnet.base import *
 
-import imp
+import imp, os
 
 __all__ = ['load_dataset', 'DsetRef', 'DataRef']
 
@@ -31,18 +31,22 @@ class DataRef(object):
     def _as_TensorVariable(self):
         return T.as_tensor_variable(self.data)
 
+    def shared(self, **kwargs):
+        return self.dset.shared_class(self, **kwargs)
+
     def __reduce__(self):
         return DataRef, (self.dset, self.portion)
 
 def load_dataset(name, part, portion=None):
-    ref = DataRef(name, part)
+    ref = DsetRef(name, part)
     if portion:
         return ref[portion]
     else:
         return ref
 
 _dset_cache = dict()
-dset_path = ['.']
+
+dset_path = os.getenv('PYNNET_DATASET_PATH', '.').split(':')
 
 def get_dset(name):
     if name not in _dset_cache:

@@ -1,13 +1,5 @@
 from pynnet.base import *
-from pynnet.dset import DataRef
 import sys
-
-def shared(value, **kwargs):
-    if type(value) is not DataRef:
-        def index_shared(idx):
-            return value[idx]
-        return index_shared
-    return value.dset.shared_class(value, **kwargs)
 
 def load_shared(klass, dataref, kwargs):
     return klass(dataref **kwargs)
