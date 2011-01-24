@@ -40,7 +40,7 @@ def methods_of(obj, mod=None):
             yield attr
 
 def test_example(file):
-    fail = False
+    fail = None
     env = dict()
     print "Trying:", file,
     sys.stdout.flush()
@@ -82,4 +82,4 @@ if __name__ == '__main__':
                 cover(mod)
     else:
         runTests(pynnet)
-        try_examples('examples')
+#        try_examples('examples')
