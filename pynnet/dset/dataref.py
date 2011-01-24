@@ -5,7 +5,7 @@ import imp, os
 __all__ = ['load_dataset', 'DsetRef', 'DataRef']
 
 class DsetRef(object):
-    __slots__ = ('name', 'part', 'data')
+    __slots__ = ('name', 'part', 'data', 'shared_class')
     def __init__(self, name, part, shared_class=None):
         self.name = name
         self.part = part
@@ -19,7 +19,7 @@ class DsetRef(object):
         return DataRef(self, portion)
 
     def __reduce__(self):
-        return DsetRef, (self.name, self.part)
+        return DsetRef, (self.name, self.part, self.shared_class)
 
 class DataRef(object):
     __slots__ = ('dset', 'portion', 'data')
@@ -56,8 +56,8 @@ def get_dset(name):
             raise AttributeError('No such dataset: ', + name)
         try:
             mod = imp.load_module(name, fp, pathname, descr)
-        except ImportError:
-            raise ValueError('Could not load dataset ' + name)
+        except ImportError, e:
+            raise ValueError('Could not load dataset ' + name, e)
         finally:
             if fp:
                 fp.close()
