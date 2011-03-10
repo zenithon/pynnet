@@ -58,10 +58,10 @@ class CorruptNode(BaseNode):
                                            p=1-self.noise, dtype='int8')
             return input * idx
 
-def autoencoder(input, n_in, n_out, tied=False, nlin=tanh,
+def autoencoder(input, n_in, n_out, noise=0.0, tied=False, nlin=tanh,
                 dtype=theano.config.floatX, rng=numpy.random):
     r"""
-    Utility function to build an (single-node) autoencoder.
+    Utility function to build an autoencoder.
     
     This function returns a tuple with the encoding and
     reconstruction parts of the output.
@@ -82,6 +82,7 @@ def autoencoder(input, n_in, n_out, tied=False, nlin=tanh,
     >>> theano.pp(dec.W)
     'W.T'
     """
+    noiser = CorruptNode(input, noise)
     encode = SimpleNode(input, n_in, n_out, nlin=nlin,
                          dtype=dtype, rng=rng)
     if tied:
@@ -92,10 +93,51 @@ def autoencoder(input, n_in, n_out, tied=False, nlin=tanh,
     else:
         decode = SimpleNode(encode, n_out, n_in,
                              nlin=nlin, dtype=dtype, rng=rng)
-    return encode, decode
+    return encode, decode.replace({input: noiser})
+
+def recurrent_autoencoder(input, n_in, n_out, noise=0.0, tied=False, nlin=tanh,
+                          preerror=mse, dtype=theano.config.floatX,
+                          rng=numpy.random):
+    r"""
+    Utility function to build a recurrent autoencoder.
     
-def conv_autoencoder(input, filter_size, num_filt, num_in=1, rng=numpy.random,
-                     nlin=tanh, dtype=theano.config.floatX, name=None):
+    This function returns a tuple with the encoding output and
+    pretraining cost.
+
+    Examples:
+    >>> x = T.fmatrix('x')
+    >>> enc, precost = recurrent_autoencoder(x, 3, 2)
+    >>> enc, precost = recurrent_autoencoder(x, 6, 4, tied=True)
+    
+    Tests:
+    >>> enc, precost = recurrent_autoencoder(x, 20, 16, tied=True)
+    >>> enc.params
+    [W, b]
+    >>> dec.params
+    [W, b, b2]
+    >>> enc.nlin
+    <function tanh at ...>
+    >>> theano.pp(dec.W)
+    'W.T'
+    """
+    noiser = CorruptNode(input, noise)
+    encode = RecurrentWrapper(input, lambda x_n:, SimpleNode(x_n, n_in+n_out, 
+                                                             n_out, nlin=nlin,
+                                                             dtype=dtype,
+                                                             rng=rng),
+                              outshp=(n_out,))
+    if tied:
+        b = theano.shared(value=numpy.zeros((n_in,)).astype(dtype),
+                          name='b2')
+        decode = SharedNode(encode, encode.W.T, b, nlin=nlin)
+        decode.local_params.append(b)
+    else:
+        decode = SimpleNode(encode, n_out, n_in+n_out,
+                             nlin=nlin, dtype=dtype, rng=rng)
+    return encode, decode.replace({input: noiser})
+
+def conv_autoencoder(input, filter_size, num_filt, num_in=1, noise=0.0, 
+                     nlin=tanh, rng=numpy.random, dtype=theano.config.floatX):
     r"""
     Utility function to build an (single-node) autoencoder.
     
@@ -117,14 +159,16 @@ def conv_autoencoder(input, filter_size, num_filt, num_in=1, rng=numpy.random,
     >>> dec.nlin
     <function tanh at ...>
     """
+    noiser = CorruptNode(input, noise)
     encode = ConvNode(input, filter_size=filter_size, num_filt=num_filt,
-                       num_in=num_in, nlin=nlin, rng=rng,
-                       mode='valid', dtype=dtype)
-    dec_in = SharedConvNode(input, encode.filter, encode.b,
-                             encode.filter_shape, nlin=nlin,
-                             mode='full')
+                      num_in=num_in, nlin=nlin, rng=rng,
+                      mode='valid', dtype=dtype)
+    dec_in = SharedConvNode(noiser, encode.filter, encode.b,
+                            encode.filter_shape, nlin=nlin,
+                            mode='full')
+    dec_in.local_params.append(encode.filter)
+    dec_in.local_params.append(encode.b)
     decode = ConvNode(dec_in, filter_size=filter_size, num_filt=num_in,
-                       dtype=dtype, num_in=num_filt, nlin=nlin, 
-                       rng=rng, mode='valid')
+                      dtype=dtype, num_in=num_filt, nlin=nlin, 
+                      rng=rng, mode='valid')
     return encode, decode
-    
