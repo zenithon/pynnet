@@ -109,6 +109,12 @@ class BaseNode(BaseObject):
                 self._cache['dict'] = d
             return self._cache['dict']
 
+    def walk(self, fn, type=BaseNode):
+        for i in self.inputs:
+            if isinstance(i, type):
+                fn(i)
+            i.walk(fn, type)
+
     class output(prop):
         def fget(self):
             if 'output' not in self._cache:
