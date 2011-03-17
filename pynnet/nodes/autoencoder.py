@@ -1,5 +1,6 @@
 from pynnet.nodes.base import *
-from pynnet.nodes import SimpleNode, SharedNode, ConvNode, SharedConvNode
+from pynnet.nodes import SimpleNode, SharedNode, ConvNode, SharedConvNode, \
+    RecurrentWrapper
 from pynnet.nlins import tanh
 from pynnet.errors import mse
 
@@ -121,10 +122,10 @@ def recurrent_autoencoder(input, n_in, n_out, noise=0.0, tied=False, nlin=tanh,
     'W.T'
     """
     noiser = CorruptNode(input, noise)
-    encode = RecurrentWrapper(input, lambda x_n:, SimpleNode(x_n, n_in+n_out, 
-                                                             n_out, nlin=nlin,
-                                                             dtype=dtype,
-                                                             rng=rng),
+    encode = RecurrentWrapper(input, lambda x_n: SimpleNode(x_n, n_in+n_out, 
+                                                            n_out, nlin=nlin,
+                                                            dtype=dtype,
+                                                            rng=rng),
                               outshp=(n_out,))
     if tied:
         b = theano.shared(value=numpy.zeros((n_in,)).astype(dtype),
