@@ -109,7 +109,8 @@ class BaseNode(BaseObject):
                 self._cache['dict'] = d
             return self._cache['dict']
 
-    def walk(self, fn, type=BaseNode):
+    def walk(self, fn, type=None):
+        type = type or BaseNode
         for i in self.inputs:
             if isinstance(i, type):
                 fn(i)
