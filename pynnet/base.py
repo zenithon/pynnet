@@ -1,7 +1,7 @@
 from __future__ import with_statement
 
 __all__ = ['BaseObject', 'theano', 'T', 'numpy', 'load', 'loadf',
-           'test_saveload', 'prop']
+           'test_saveload', 'prop', 'cell']
 
 try:
     import cPickle as pickle
@@ -222,3 +222,18 @@ class prop(object):
     1.5
     """
     __metaclass__ = prop_meta
+
+
+class cell(object):
+    r""" 
+    This class is useful when you want to hold a reference to a value
+    rather than the value itself.
+
+    This is mostly used in the case of nodes that want to hold mutable
+    implementation details without destroying their cache in the
+    process.  Note that you have to be certain that this use is
+    actually safe cache-wise before mucking about.
+    """
+    __slots__ = ('val')
+    def __init__(self, val=None):
+        self.val = val
