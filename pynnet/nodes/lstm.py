@@ -48,7 +48,7 @@ class CEC(BaseNode):
         >>> g.params
         [W, b]
         >>> theano.pp(c.output)
-        '(Rebroadcast{?,1}(sigmoid(((x \\dot W) + b))) * <theano.scan.Scan object at ...>(?_steps, Rebroadcast{?,1}(sigmoid(((x \\dot W) + b))), (x * Rebroadcast{?,1}(sigmoid(((x \\dot W) + b)))), cec))'
+        '(Rebroadcast{?,1}(sigmoid(((x \\dot W) + b))) * scan(?_steps, Rebroadcast{?,1}(sigmoid(((x \\dot W) + b))), (x * Rebroadcast{?,1}(sigmoid(((x \\dot W) + b)))), cec))'
         >>> f = theano.function([x], c.output, allow_input_downcast=True)
         >>> r = f(numpy.random.random((4, 3)))
         >>> r.dtype

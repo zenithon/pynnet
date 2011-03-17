@@ -27,6 +27,6 @@ automatically computed when needed.
 """
 from pynnet.nodes.simple import *
 from pynnet.nodes.conv import *
-from pynnet.nodes.autoencoder import *
 from pynnet.nodes.recurrent import *
+from pynnet.nodes.autoencoder import *
 from pynnet.nodes.lstm import *

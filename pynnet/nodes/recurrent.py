@@ -5,7 +5,7 @@ from pynnet.errors import cross_entropy
 
 from theano.tensor.shared_randomstreams import RandomStreams
 
-__all__ = ['DelayNode', 'RecurrentWrapper']
+__all__ = ['DelayNode', 'RecurrentInput', 'RecurrentOutput', 'RecurrentWrapper']
 
 class DelayNode(BaseNode):
     r"""
@@ -52,6 +52,82 @@ class DelayNode(BaseNode):
         j = T.join(0, self.memory, input)
         self.memory.default_update = j[-self.delay:]
         return j[:-self.delay]
+
+class RecurrentInput(BaseNode):
+    r"""
+    Node used to mark the point where recurrent input is inserted.
+
+    For use in conjunction with RecurrentOutput.  The tag parameter
+    serves to match a RecurrentOutput with the corresponding
+    RecurrentInput.  More than one recurrent loop can be nested as
+    long as the nesting is proper and they do not share the same tag.
+    
+    Examples:
+    >>> x = T.fmatrix()
+    >>> tag = object()
+    >>> rx = RecurrentInput(x, tag)
+    >>> o = SimpleNode(rx, 5, 2)
+    >>> ro = RecurrentOutput(o, tag, outshp=(2,))
+
+    You can then use `ro` as usual for the rest of the graph.
+    
+    Attributes:
+    `tag` -- (object, read-write) some object to match this
+             RecurrentInput with its corresponding RecurrentOutput
+    """
+    def __init__(self, input, tag, name=None):
+        r"""
+        """
+        BaseNode.__init__(self, [input], name)
+        self.tag = tag
+
+class RecurrentOutput(BaseNode):
+    r"""
+    See documentation for RecurrentInput.
+    """
+    def __init__(self, input, tag, outshp=None, mem_init=None, name=None,
+                 dtype=theano.config.floatX):
+        BaseNode.__init__(self, [input], name)
+        self.tag = tag
+        self.mem_init = mem_init or numpy.zeros(outshp, dtype=dtype)
+        self.memory = theano.shared(self.mem_init.copy(), name='memory')
+        self._inp = cell(None)
+
+    def clear(self):
+        r"""
+        Resets the memory to the initial value.
+        """
+        self.memory.value = self.mem_init.copy()
+
+    def _walker(self, node):
+        r"""
+        :nodoc:
+        """
+        if node.tag == self.tag:
+            if self._inp is not node:
+                assert self._inp.val is None
+                self._inp.val = node
+    
+    class output(prop):
+        def fget(self):
+            if 'output' not in self._cache:
+                self.walk(self._walker, RecurrentInput)
+                assert self._inp.val is not None
+                def f(inp, mem):
+                    i = InputNode(T.unbroadcast(T.shape_padleft(T.join(0,inp,mem)),0),
+                                  allow_complex=True)
+                    g = self.inputs[0].replace({self._inp.val: i})
+                    return g.output[0]
+
+                outs, updt = theano.scan(f, sequences=[self._inp.val.inputs[0].output], outputs_info=[self.memory])
+                
+                for s, u in upds.iteritems():
+                    s.default_update = u
+                self.memory.default_update = outs[-1]
+                # clear for the next run
+                self._inp.val = None
+                self._cache['output'] = outs
+            return self._cache['output']
 
 class RecurrentWrapper(BaseNode):
     r"""
@@ -109,7 +185,7 @@ class RecurrentWrapper(BaseNode):
         >>> r.params
         [W, b]
         >>> theano.pp(r.output)
-        '<theano.scan.Scan object at ...>(?_steps, x, memory, W, b)'
+        'scan(?_steps, x, memory, W, b)'
         >>> f = theano.function([x], r.output, allow_input_downcast=True)
         >>> v = f(numpy.random.random((4, 3)))
         >>> v.dtype
