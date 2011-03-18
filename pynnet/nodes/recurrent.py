@@ -21,7 +21,7 @@ class DelayNode(BaseNode):
         >>> d = DelayNode(x, 1, numpy.array([[1, 2, 3]], dtype='float32'))
         >>> d.delay
         1
-        >>> d.memory.value
+        >>> d.memory.get_value()
         array([[ 1.,  2.,  3.]], dtype=float32)
         """
         BaseNode.__init__(self, [input], name)
@@ -44,7 +44,7 @@ class DelayNode(BaseNode):
         dtype('float32')
         >>> v.shape
         (5, 2)
-        >>> (d.memory.value == inp[-2:]).all()
+        >>> (d.memory.get_value() == inp[-2:]).all()
         True
         >>> (v[2:] == inp[:-2]).all()
         True
@@ -77,6 +77,14 @@ class RecurrentInput(BaseNode):
     """
     def __init__(self, input, tag, name=None):
         r"""
+        Tests:
+        >>> x = T.fmatrix('x')
+        >>> tag = object()
+        >>> rx = RecurrentInput(x, tag)
+        >>> o = SimpleNode(rx, 5, 2)
+        >>> ro = RecurrentOutput(o, tag, outshp=(2,))
+        >>> theano.pp(ro.output)
+        'scan(?_steps, x, memory, W, b)'
         """
         BaseNode.__init__(self, [input], name)
         self.tag = tag
@@ -87,6 +95,18 @@ class RecurrentOutput(BaseNode):
     """
     def __init__(self, input, tag, outshp=None, mem_init=None, name=None,
                  dtype=theano.config.floatX):
+        r"""
+        Tests:
+        >>> x = T.fmatrix('x')
+        >>> tag = object()
+        >>> rx = RecurrentInput(x, tag)
+        >>> o = SimpleNode(rx, 5, 2)
+        >>> ro = RecurrentOutput(o, tag, outshp=(2,))
+        >>> theano.pp(ro.output)
+        'scan(?_steps, x, memory, W, b)'
+        >>> ro.memory.get_value()
+        array([ 0.,  0.])
+        """
         BaseNode.__init__(self, [input], name)
         self.tag = tag
         self.mem_init = mem_init or numpy.zeros(outshp, dtype=dtype)
@@ -97,7 +117,7 @@ class RecurrentOutput(BaseNode):
         r"""
         Resets the memory to the initial value.
         """
-        self.memory.value = self.mem_init.copy()
+        self.memory.set_value(self.mem_init.copy())
 
     def _walker(self, node):
         r"""
@@ -121,7 +141,7 @@ class RecurrentOutput(BaseNode):
 
                 outs, updt = theano.scan(f, sequences=[self._inp.val.inputs[0].output], outputs_info=[self.memory])
                 
-                for s, u in upds.iteritems():
+                for s, u in updt.iteritems():
                     s.default_update = u
                 self.memory.default_update = outs[-1]
                 # clear for the next run
@@ -159,7 +179,7 @@ class RecurrentWrapper(BaseNode):
         >>> x = T.fmatrix('x')
         >>> r = RecurrentWrapper(x, lambda x_n: SimpleNode(x_n, 10, 5, dtype='float32'),
         ...                      outshp=(5,), dtype='float32')
-        >>> r.memory.value
+        >>> r.memory.get_value()
         array([ 0.,  0.,  0.,  0.,  0.], dtype=float32)
         """
         BaseNode.__init__(self, [input], name)
@@ -174,7 +194,7 @@ class RecurrentWrapper(BaseNode):
         r"""
         Resets the memory to the initial value.
         """
-        self.memory.value = self.mem_init.copy()
+        self.memory.set_value(self.mem_init.copy())
     
     def transform(self, input):
         r"""
@@ -192,14 +212,14 @@ class RecurrentWrapper(BaseNode):
         dtype('float32')
         >>> v.shape
         (4, 2)
-        >>> (r.memory.value == v[-1]).all()
+        >>> (r.memory.get_value() == v[-1]).all()
         True
         >>> r=RecurrentWrapper(x, lambda inp: RecurrentWrapper(inp, lambda inp2: SimpleNode(inp2, 6,2), outshp=(2,)), outshp=(2,))
         >>> f = theano.function([x], r.output, allow_input_downcast=True)
         >>> v = f(numpy.random.random((3, 2)))
         >>> v.shape
         (3, 2)
-        >>> (r.memory.value == v[-1]).all()
+        >>> (r.memory.get_value() == v[-1]).all()
         True
         """
         def f(inp, mem):
