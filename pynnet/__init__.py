@@ -1,6 +1,6 @@
-from base import load, loadf
-from nodes import *
+from pynnet.base import load, loadf
+from pynnet.nodes import *
 
-import nlins
-import errors
-import trainers
+import pynnet.nlins
+import pynnet.errors
+import pynnet.trainers
