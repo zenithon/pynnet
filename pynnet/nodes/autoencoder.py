@@ -1,12 +1,13 @@
 from pynnet.nodes.base import *
 from pynnet.nodes import SimpleNode, SharedNode, ConvNode, SharedConvNode, \
-    RecurrentWrapper
+    RecurrentInput, RecurrentOutput
 from pynnet.nlins import tanh
 from pynnet.errors import mse
 
 from theano.tensor.shared_randomstreams import RandomStreams
 
-__all__ = ['CorruptNode', 'autoencoder', 'conv_autoencoder']
+__all__ = ['CorruptNode', 'autoencoder', 'recurrent_autoencoder', 
+           'conv_autoencoder']
 
 class CorruptNode(BaseNode):
     r"""
@@ -82,6 +83,10 @@ def autoencoder(input, n_in, n_out, noise=0.0, tied=False, nlin=tanh,
     <function tanh at ...>
     >>> theano.pp(dec.W)
     'W.T'
+    >>> theano.pp(enc.output)
+    'tanh(((x \\dot W) + b))'
+    >>> theano.pp(dec.output)
+    'tanh(((tanh(((x \\dot W) + b)) \\dot W.T) + b2))'
     """
     noiser = CorruptNode(input, noise)
     encode = SimpleNode(input, n_in, n_out, nlin=nlin,
@@ -97,8 +102,7 @@ def autoencoder(input, n_in, n_out, noise=0.0, tied=False, nlin=tanh,
     return encode, decode.replace({input: noiser})
 
 def recurrent_autoencoder(input, n_in, n_out, noise=0.0, tied=False, nlin=tanh,
-                          preerror=mse, dtype=theano.config.floatX,
-                          rng=numpy.random):
+                          dtype=theano.config.floatX, rng=numpy.random):
     r"""
     Utility function to build a recurrent autoencoder.
     
@@ -107,35 +111,37 @@ def recurrent_autoencoder(input, n_in, n_out, noise=0.0, tied=False, nlin=tanh,
 
     Examples:
     >>> x = T.fmatrix('x')
-    >>> enc, precost = recurrent_autoencoder(x, 3, 2)
-    >>> enc, precost = recurrent_autoencoder(x, 6, 4, tied=True)
+    >>> enc, dec, rec_in = recurrent_autoencoder(x, 3, 2)
+    >>> enc, dec, rec_in = recurrent_autoencoder(x, 6, 4, tied=True)
     
     Tests:
-    >>> enc, precost = recurrent_autoencoder(x, 20, 16, tied=True)
+    >>> enc, dec, rec_in = recurrent_autoencoder(x, 20, 16, tied=True)
     >>> enc.params
     [W, b]
     >>> dec.params
     [W, b, b2]
-    >>> enc.nlin
-    <function tanh at ...>
     >>> theano.pp(dec.W)
     'W.T'
+    >>> theano.pp(enc.output)
+    'scan(?_steps, x, memory, W, b)'
+    >>> theano.pp(dec.output)
+    'tanh(((scan(?_steps, x, memory, W, b) \\dot W.T) + b2))'
     """
-    noiser = CorruptNode(input, noise)
-    encode = RecurrentWrapper(input, lambda x_n: SimpleNode(x_n, n_in+n_out, 
-                                                            n_out, nlin=nlin,
-                                                            dtype=dtype,
-                                                            rng=rng),
-                              outshp=(n_out,))
+    tag = object()
+    rec_in = RecurrentInput(input, tag)
+    noiser = CorruptNode(rec_in, noise)
+    encode = SimpleNode(rec_in, n_in, n_out, nlin=nlin,
+                         dtype=dtype, rng=rng)
+    rec_enc = RecurrentOutput(encode, tag, outshp=(n_out,), dtype=dtype)
     if tied:
-        b = theano.shared(value=numpy.zeros((n_in,)).astype(dtype),
+        b = theano.shared(value=numpy.random.random((n_in,)).astype(dtype),
                           name='b2')
-        decode = SharedNode(encode, encode.W.T, b, nlin=nlin)
+        decode = SharedNode(rec_enc, encode.W.T, b, nlin=nlin)
         decode.local_params.append(b)
     else:
-        decode = SimpleNode(encode, n_out, n_in+n_out,
+        decode = SimpleNode(rec_enc, n_out, n_in,
                              nlin=nlin, dtype=dtype, rng=rng)
-    return encode, decode.replace({input: noiser})
+    return rec_enc, decode.replace({rec_in: noiser}), rec_in
 
 def conv_autoencoder(input, filter_size, num_filt, num_in=1, noise=0.0, 
                      nlin=tanh, rng=numpy.random, dtype=theano.config.floatX):
