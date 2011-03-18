@@ -103,10 +103,10 @@ class SimpleNode(SharedNode):
         >>> h = SimpleNode(x, 2, 1)
         >>> h.params
         [W, b]
-        >>> h.W.value.shape
+        >>> h.W.get_value().shape
         (2, 1)
         >>> h2 = test_saveload(h)
-        >>> h2.W.value.shape
+        >>> h2.W.get_value().shape
         (2, 1)
         >>> h2.params
         [W, b]
