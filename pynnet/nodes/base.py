@@ -5,7 +5,7 @@ import warnings
 
 import copy
 
-__all__ = ['BaseNode', 'InputNode']+pynnet.base.__all__
+__all__ = ['BaseNode', 'InputNode', 'make_trivial']+pynnet.base.__all__
 
 cdict = dict()
 
@@ -110,6 +110,12 @@ class BaseNode(BaseObject):
             return self._cache['dict']
 
     def walk(self, fn, type=None):
+        r"""
+        Calls `fn` for each node referenced by the graph.
+
+        If the optional argument `type`is provided only nodes that are
+        instance of that type will be visited.
+        """
         type = type or BaseNode
         for i in self.inputs:
             if isinstance(i, type):
@@ -209,3 +215,36 @@ class InputNode(BaseNode):
         :nodoc:
         """
         return type(self) == type(other) and self.expr == other.expr
+
+def make_trivial(fn):
+    r""" 
+    Returns a function that, when call with inputs will return a
+    BaseNode with the provided transform and inputs.
+    
+    Tests:
+    >>> x = T.fmatrix()
+    >>> y = T.fmatrix()
+    >>> net = SimpleNode(x, 5, 3)
+    >>> nll = make_trivial(pynnet.errors.nll)
+    >>> print nll.__doc__
+    <BLANKLINE>
+        Computes the negative log likelyhood.
+    <BLANKLINE>
+        Inputs:
+        os -- probabilites for each class
+        y -- integer label for the good class
+    <BLANKLINE>
+    >>> err = make_trivial(pynnet.errors.mse)(net, y)
+    >>> theano.pp(err.output)
+    '((sum(((tanh(((<TensorType(float32, matrix)> \\dot W) + b)) - <TensorType(float32, matrix)>) ** 2)) / ((tanh(((<TensorType(float32, matrix)> \\dot W) + b)) - <TensorType(float32, matrix)>) ** 2).shape[0]) / ((tanh(((<TensorType(float32, matrix)> \\dot W) + b)) - <TensorType(float32, matrix)>) ** 2).shape[1])'
+    """
+    def f(*inputs):
+        cname = fn.__name__
+        count = cdict.setdefault(fn, 1)
+        name = '%s%d'%(cname, count)
+        cdict[fn] += 1
+        res = BaseNode(inputs, name)
+        res.transform = fn
+        return res
+    f.__doc__ = strip_tests(fn.__doc__)
+    return f

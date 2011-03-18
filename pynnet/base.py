@@ -1,7 +1,7 @@
 from __future__ import with_statement
 
 __all__ = ['BaseObject', 'theano', 'T', 'numpy', 'load', 'loadf',
-           'test_saveload', 'prop', 'cell']
+           'test_saveload', 'prop', 'cell', 'strip_tests']
 
 try:
     import cPickle as pickle
@@ -199,7 +199,7 @@ class prop(object):
     The 'self' argument these methods take refer to the enclosing
     class of the attribute, not the attribute 'class'.
     
-    Example/test:
+    Examples:
     >>> class Angle(object):
     ...     def __init__(self, rad):
     ...         self._rad = rad
@@ -236,4 +236,27 @@ class cell(object):
     """
     __slots__ = ('val')
     def __init__(self, val=None):
+        r"""
+        :nodoc:
+        """
         self.val = val
+
+def strip_tests(doc):
+    r"""
+    Removes the "Tests:" and "Examples:" sections from the provided docstring.
+
+    For use when transferring the docstring from one function to
+    another when making wrappers.
+    """
+    res = []
+    stripping = False
+    for line in doc.split('\n'):
+        l = line.strip()
+        if l == 'Tests:' or l == 'Examples:':
+            stripping = True
+        elif l.endswith(':') and \
+                not (l.startswith('>>>') or l.startswith('...')):
+            stripping = False
+        if not stripping:
+            res.append(line)
+    return '\n'.join(res)
