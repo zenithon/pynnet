@@ -1,6 +1,6 @@
 from pynnet.base import *
 
-__all__ = ['NullStopper', 'SGDStopper']
+__all__ = ['NullStopper', 'EarlyStopper']
 
 class NullStopper(BaseObject):
     r"""
@@ -28,7 +28,10 @@ class NullStopper(BaseObject):
         """
         return True
     
-class SGDStopper(BaseObject):
+class EarlyStopper(BaseObject):
+    r"""
+    Stopper that uses a early stopping criterion.
+    """
     def __init__(self, patience=2000, improvement_treshold=0.995, 
                  check_every=100):
         self.patience_increase = patience
@@ -36,6 +39,9 @@ class SGDStopper(BaseObject):
         self.improvement_treshold = improvement_treshold
 
     def init_params(self, model, valid):
+        r"""
+        Prep stopper for a training session.
+        """
         self.patience = self.patience_increase
         self.best_valid_score = float('inf')
         self.best_iter = 0
@@ -43,6 +49,14 @@ class SGDStopper(BaseObject):
         self.valid = valid
     
     def check(self, epoch, score):
+        r"""
+        Check every `check_every` epoch whether the score has improved
+        enough.
+
+        This will wait at most `patience` epochs between significant
+        improvements.  It will terminate training when patience is
+        exhausted.
+        """
         if epoch % self.check_every != 0:
             return True
 

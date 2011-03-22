@@ -39,9 +39,8 @@ class SubModel(StandardModel):
     This class can serve to bundle prebuilt training function to pass
     to a particular trainer.
     """
-    def __init__(self, trainf, evalf):
-        r"""
-        :nodoc:
-        """
-        self.train = trainf
-        self.eval = evalf
+    def __init__(self, partialf, evalf):
+        if partialf:
+            self.partial_fit = partialf
+        if evalf:
+            self.eval = evalf
