@@ -14,7 +14,8 @@ all exemples.
 """
 from .base import *
 
-__all__ = ['mse', 'nll', 'class_error', 'cross_entropy']
+__all__ = ['mse', 'nll', 'class_error', 'binary_cross_entropy',
+           'multi_cross_entropy']
 
 def nll(os, y):
     r"""
@@ -54,29 +55,18 @@ def class_error(os, y):
     """
     return T.mean(T.neq(T.argmax(os, 1), y))
 
-def cross_entropy(os, y):
+def binary_cross_entropy(os, y):
     r"""
-    Cross-entropy cost.
+    Cross-entropy for 2-class output.
     
     os -- probabilites for each class (per example)
     y -- target probabilites (usually 1-hot for each example)
     """
     return T.mean(-T.sum(y*T.log(os) + (1-y)*T.log(1-os), axis=1))
 
-def scaled_cross_entropy(os, y):
+def multi_cross_entropy(os, y):
     r"""
-    Cross-entropy cost with inputs scaled from [-1, 1] to [0, 1].
-
-    This is useful for using cross-entropy with tanh.
-    
-    os -- tanh output
-    y -- target probabilites (usually 1-hot for each example)
-    """
-    return cross_entropy((os+1)/2, y)
-
-def cross_entropy_softmax(os, y):
-    r"""
-    Cross-entropy cost for softmax output.
+    Cross-entropy cost for multiple class output.
     
     os -- probabilites for each class (per example)
     y -- target probabilites (usually 1-hot for each example)
