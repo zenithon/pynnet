@@ -1,4 +1,4 @@
-from pynnet.nodes.base import *
+from .base import *
 from pynnet import errors
 
 # This will error out when a new function is added to errors.

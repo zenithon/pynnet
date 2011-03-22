@@ -1,6 +1,7 @@
-from pynnet.nodes.base import *
+from .base import *
 from pynnet.nlins import tanh, sigmoid
-from pynnet.nodes import SimpleNode, RecurrentWrapper
+from .simple import SimpleNode
+from .recurrent import RecurrentWrapper
 
 __all__ = ['lstm_block']
 

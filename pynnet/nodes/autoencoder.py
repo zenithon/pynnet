@@ -1,6 +1,8 @@
-from pynnet.nodes.base import *
-from pynnet.nodes import SimpleNode, SharedNode, ConvNode, SharedConvNode, \
-    RecurrentInput, RecurrentOutput
+from .base import *
+from .simple import SimpleNode, SharedNode
+from .conv import ConvNode, SharedConvNode
+from .recurrent import RecurrentInput, RecurrentOutput
+
 from pynnet.nlins import tanh
 from pynnet.errors import mse
 
