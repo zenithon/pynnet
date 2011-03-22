@@ -53,7 +53,7 @@ def get_dset(name):
         try:
             fp, pathname, descr = imp.find_module(name, dset_path)
         except ImportError:
-            raise AttributeError('No such dataset: ', + name)
+            raise AttributeError('No such dataset: ' + name)
         try:
             mod = imp.load_module(name, fp, pathname, descr)
         except ImportError, e:
