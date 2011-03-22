@@ -17,7 +17,7 @@ def test(name):
 def cover(name):
     __import__(name)
     for meth in methods_of(sys.modules[name]):
-        if meth.__name__ in ('__str__',):
+        if meth.__name__.startswith('_'):
             continue
         if meth.__doc__ is None:
             print "*** No doc for:", meth.__name__
