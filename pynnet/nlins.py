@@ -1,4 +1,4 @@
-from pynnet.base import *
+from .base import *
 
 __all__ = ['tanh', 'sigmoid', 'softmax', 'none']
 

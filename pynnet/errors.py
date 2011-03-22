@@ -12,7 +12,7 @@ Returns:
 A single symbolic expression that computes the mean of the error over
 all exemples.
 """
-from pynnet.base import *
+from .base import *
 
 __all__ = ['mse', 'nll', 'class_error', 'cross_entropy']
 
