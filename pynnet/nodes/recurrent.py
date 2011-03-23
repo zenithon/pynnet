@@ -89,13 +89,14 @@ class RecurrentInput(BaseNode):
         self.tag = tag
 
 class FakeNode(BaseNode):
-    def __init__(self, input, fn, name=None):
+    def __init__(self, input, o, attr, name=None):
         BaseNode.__init__(self, [input], name)
-        self.fn = fn
+        self.o = o
+        self.attr = attr
 
     class output(prop):
         def fget(self):
-            return self.fn()
+            return getattr(self.o, self.attr)
 
 class RecurrentOutput(BaseNode):
     r"""
@@ -144,10 +145,11 @@ class RecurrentOutput(BaseNode):
                 self._makegraph()
             return self._cache['output']
 
-    def _trans_recin(self):
-        if 'inpmem' not in self._cache:
-            self._makegraph()
-        return self._cache['inpmem']
+    class inpmem(prop):
+        def fget(self):
+            if 'inpmem' not in self._cache:
+                self._makegraph()
+            return self._cache['inpmem']
 
     class rec_in(prop):
         def fget(self):
@@ -159,7 +161,7 @@ class RecurrentOutput(BaseNode):
         self.walk(self._walker, RecurrentInput)
         
         assert self._inp.val is not None
-        self._cache['rec_in'] = FakeNode(self._inp.val, self._trans_recin)
+        self._cache['rec_in'] = FakeNode(self._inp.val, self, 'inpmem')
 
         def f(inp, mem):
             i = InputNode(T.unbroadcast(T.shape_padleft(T.join(0,inp,mem)),0),
