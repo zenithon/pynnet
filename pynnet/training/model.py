@@ -1,6 +1,6 @@
 from pynnet.base import *
 
-__all__ = []
+__all__ = ['SubModel']
 
 class StandardModel(BaseObject):
     r"""
