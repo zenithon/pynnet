@@ -112,6 +112,7 @@ class RecurrentOutput(BaseNode):
         >>> ro = RecurrentOutput(o, tag, outshp=(2,))
         >>> theano.pp(ro.output)
         'scan(?_steps, x, memory, 0.0, W, b)'
+        >>> ro._cache.clear()
         >>> ro.memory.get_value()
         array([ 0.,  0.])
         >>> theano.pp(ro.rec_in.output)
@@ -150,7 +151,7 @@ class RecurrentOutput(BaseNode):
 
     class rec_in(prop):
         def fget(self):
-            if 'rec_in' in self._cache:
+            if 'rec_in' not in self._cache:
                 self._makegraph()
             return self._cache['rec_in']
 
