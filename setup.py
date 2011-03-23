@@ -10,7 +10,7 @@ setup(name='pynnet',
       url='http://code.google.com/p/pynnet',
       packages=find_packages(),
       requires=['numpy', 'theano'],
-      license='MIT'
+      license='MIT',
       classifiers = [
         "Development Status :: 4 - Beta",
         "License :: OSI Approved :: MIT License"
