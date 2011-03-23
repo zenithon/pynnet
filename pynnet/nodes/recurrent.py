@@ -1,7 +1,6 @@
 from .base import *
 from .simple import SimpleNode
 from pynnet.nlins import *
-from pynnet.errors import cross_entropy
 
 from theano.tensor.shared_randomstreams import RandomStreams
 
