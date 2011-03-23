@@ -113,11 +113,11 @@ def recurrent_autoencoder(input, n_in, n_out, noise=0.0, tied=False, nlin=tanh,
 
     Examples:
     >>> x = T.fmatrix('x')
-    >>> enc, dec, rec_in = recurrent_autoencoder(x, 3, 2)
-    >>> enc, dec, rec_in = recurrent_autoencoder(x, 6, 4, tied=True)
+    >>> enc, dec = recurrent_autoencoder(x, 3, 2)
+    >>> enc, dec = recurrent_autoencoder(x, 6, 4, tied=True)
     
     Tests:
-    >>> enc, dec, rec_in = recurrent_autoencoder(x, 20, 16, tied=True)
+    >>> enc, dec = recurrent_autoencoder(x, 20, 16, tied=True)
     >>> enc.params
     [W, b]
     >>> dec.params
@@ -125,25 +125,31 @@ def recurrent_autoencoder(input, n_in, n_out, noise=0.0, tied=False, nlin=tanh,
     >>> theano.pp(dec.W)
     'W.T'
     >>> theano.pp(enc.output)
-    'scan(?_steps, x, memory, W, b)'
+    'scan(?_steps, x, memory, 0.0, W, b)'
     >>> theano.pp(dec.output)
-    'tanh(((scan(?_steps, x, memory, W, b) \\dot W.T) + b2))'
+    'tanh(((scan(?_steps, x, memory, 0.0, W, b) \\dot W.T) + b2))'
+    >>> f = theano.function([x], enc.output)
+    >>> xval = numpy.random.random((3, 20)).astype('float32')
+    >>> y = f(xval)
+    >>> f2 = theano.function([x], dec.output)
+    >>> y = f2(xval)
     """
     tag = object()
     rec_in = RecurrentInput(input, tag)
     noiser = CorruptNode(rec_in, noise)
-    encode = SimpleNode(rec_in, n_in, n_out, nlin=nlin,
+    encode = SimpleNode(rec_in, n_in+n_out, n_out, nlin=nlin,
                          dtype=dtype, rng=rng)
     rec_enc = RecurrentOutput(encode, tag, outshp=(n_out,), dtype=dtype)
     if tied:
-        b = theano.shared(value=numpy.random.random((n_in,)).astype(dtype),
+        b = theano.shared(value=numpy.random.random((n_in+n_out,)).astype(dtype),
                           name='b2')
         decode = SharedNode(rec_enc, encode.W.T, b, nlin=nlin)
         decode.local_params.append(b)
     else:
-        decode = SimpleNode(rec_enc, n_out, n_in,
+        decode = SimpleNode(rec_enc, n_out, n_in+n_out,
                              nlin=nlin, dtype=dtype, rng=rng)
-    return rec_enc, decode.replace({rec_in: noiser}), rec_in
+    
+    return rec_enc, decode.replace({rec_in: noiser})
 
 def conv_autoencoder(input, filter_size, num_filt, num_in=1, noise=0.0, 
                      nlin=tanh, rng=numpy.random, dtype=theano.config.floatX):

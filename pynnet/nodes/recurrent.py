@@ -83,10 +83,19 @@ class RecurrentInput(BaseNode):
         >>> o = SimpleNode(rx, 5, 2)
         >>> ro = RecurrentOutput(o, tag, outshp=(2,))
         >>> theano.pp(ro.output)
-        'scan(?_steps, x, memory, W, b)'
+        'scan(?_steps, x, memory, 0.0, W, b)'
         """
         BaseNode.__init__(self, [input], name)
         self.tag = tag
+
+class FakeNode(BaseNode):
+    def __init__(self, input, fn, name=None):
+        BaseNode.__init__(self, [input], name)
+        self.fn = fn
+
+    class output(prop):
+        def fget(self):
+            return self.fn()
 
 class RecurrentOutput(BaseNode):
     r"""
@@ -102,9 +111,13 @@ class RecurrentOutput(BaseNode):
         >>> o = SimpleNode(rx, 5, 2)
         >>> ro = RecurrentOutput(o, tag, outshp=(2,))
         >>> theano.pp(ro.output)
-        'scan(?_steps, x, memory, W, b)'
+        'scan(?_steps, x, memory, 0.0, W, b)'
         >>> ro.memory.get_value()
         array([ 0.,  0.])
+        >>> theano.pp(ro.rec_in.output)
+        'scan(?_steps, x, memory, 0.0, W, b)'
+        >>> ro.output == ro.rec_in.output
+        False
         """
         BaseNode.__init__(self, [input], name)
         self.tag = tag
@@ -119,34 +132,51 @@ class RecurrentOutput(BaseNode):
         self.memory.set_value(self.mem_init.copy())
 
     def _walker(self, node):
-        r"""
-        :nodoc:
-        """
         if node.tag == self.tag:
-            if self._inp is not node:
+            if self._inp.val is not node:
                 assert self._inp.val is None
                 self._inp.val = node
     
     class output(prop):
         def fget(self):
             if 'output' not in self._cache:
-                self.walk(self._walker, RecurrentInput)
-                assert self._inp.val is not None
-                def f(inp, mem):
-                    i = InputNode(T.unbroadcast(T.shape_padleft(T.join(0,inp,mem)),0),
-                                  allow_complex=True)
-                    g = self.inputs[0].replace({self._inp.val: i})
-                    return g.output[0]
-
-                outs, updt = theano.scan(f, sequences=[self._inp.val.inputs[0].output], outputs_info=[self.memory])
-                
-                for s, u in updt.iteritems():
-                    s.default_update = u
-                self.memory.default_update = outs[-1]
-                # clear for the next run
-                self._inp.val = None
-                self._cache['output'] = outs
+                self._makegraph()
             return self._cache['output']
+
+    def _trans_recin(self):
+        if 'inpmem' not in self._cache:
+            self._makegraph()
+        return self._cache['inpmem']
+
+    class rec_in(prop):
+        def fget(self):
+            if 'rec_in' in self._cache:
+                self._makegraph()
+            return self._cache['rec_in']
+
+    def _makegraph(self):
+        self.walk(self._walker, RecurrentInput)
+        
+        assert self._inp.val is not None
+        self._cache['rec_in'] = FakeNode(self._inp.val, self._trans_recin)
+
+        def f(inp, mem):
+            i = InputNode(T.unbroadcast(T.shape_padleft(T.join(0,inp,mem)),0),
+                          allow_complex=True)
+            g = self.inputs[0].replace({self._inp.val: i})
+            return g.output[0], i.output
+        
+        outs, updt = theano.scan(f, sequences=[self._inp.val.inputs[0].output],
+                                 outputs_info=[self.memory, None])
+        
+        for s, u in updt.iteritems():
+            s.default_update = u
+        self.memory.default_update = outs[0][-1]
+
+        # clear for the next run
+        self._inp.val = None
+        self._cache['output'] = outs[0]
+        self._cache['inpmem'] = outs[1]
 
 class RecurrentWrapper(BaseNode):
     r"""
