@@ -216,35 +216,27 @@ class InputNode(BaseNode):
         """
         return type(self) == type(other) and self.expr == other.expr
 
-def make_trivial(fn):
+class make_trivial(BaseObject):
     r""" 
     Returns a function that, when call with inputs will return a
     BaseNode with the provided transform and inputs.
     
     Tests:
-    >>> x = T.fmatrix()
-    >>> y = T.fmatrix()
-    >>> net = SimpleNode(x, 5, 3)
-    >>> nll = make_trivial(pynnet.errors.nll)
-    >>> print nll.__doc__
-    <BLANKLINE>
-        Computes the negative log likelyhood.
-    <BLANKLINE>
-        Inputs:
-        os -- probabilites for each class
-        y -- integer label for the good class
-    <BLANKLINE>
-    >>> err = make_trivial(pynnet.errors.mse)(net, y)
+    >>> x = T.fmatrix('x')
+    >>> y = T.fmatrix('y')
+    >>> err = make_trivial(pynnet.errors.mse)(x, y)
     >>> theano.pp(err.output)
-    '((sum(((tanh(((<TensorType(float32, matrix)> \\dot W) + b)) - <TensorType(float32, matrix)>) ** 2)) / ((tanh(((<TensorType(float32, matrix)> \\dot W) + b)) - <TensorType(float32, matrix)>) ** 2).shape[0]) / ((tanh(((<TensorType(float32, matrix)> \\dot W) + b)) - <TensorType(float32, matrix)>) ** 2).shape[1])'
+    '((sum(((x - y) ** 2)) / float32(((x - y) ** 2).shape)[0]) / float32(((x - y) ** 2).shape)[1])'
+    >>> err2 = test_saveload(err)
     """
-    def f(*inputs):
-        cname = fn.__name__
-        count = cdict.setdefault(fn, 1)
+    def __init__(self, fn):
+        self.fn = fn
+
+    def __call__(self, *inputs):
+        cname = self.fn.__name__
+        count = cdict.setdefault(self.fn, 1)
         name = '%s%d'%(cname, count)
-        cdict[fn] += 1
+        cdict[self.fn] += 1
         res = BaseNode(inputs, name)
-        res.transform = fn
+        res.transform = self.fn
         return res
-    f.__doc__ = strip_tests(fn.__doc__)
-    return f
