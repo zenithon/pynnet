@@ -6,18 +6,22 @@
 
 import theano
 from pynnet import *
+from pynnet.nodes import errors
+from pynnet.training import get_updates
 
 sx = theano.tensor.matrix('x')
 sy = theano.tensor.matrix('y')
 
 # We initialize an MLP with one hidden layer of two units.
-xornet = NNet(SimpleNode(SimpleNode(sx,2,2),2,1), sy, error=errors.mse)
+h = SimpleNode(sx, 2, 2)
+out = SimpleNode(h, 2, 1)
+cost = errors.mse(out, sy)
 
 # We can build functions from expressions to use our network
-eval = theano.function([sx], xornet.output)
-test = theano.function([sx, sy], xornet.cost)
-train = theano.function([sx, sy], xornet.cost, 
-                        updates=trainers.get_updates(xornet.params, xornet.cost, alpha=0.01))
+eval = theano.function([sx], out.output)
+test = theano.function([sx, sy], cost.output)
+train = theano.function([sx, sy], cost.output, 
+                        updates=get_updates(cost.params, cost.output, 0.01))
 
 
 x = [[0, 0], [0, 1], [1, 0], [1, 1]]

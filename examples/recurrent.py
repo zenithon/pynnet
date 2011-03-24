@@ -13,6 +13,8 @@
 # should predict the 0 correctly though.
 
 from pynnet import *
+from pynnet.nodes import errors
+from pynnet.training import get_updates
 import numpy, theano
 
 # we define the datasets
@@ -24,7 +26,7 @@ def genseq(i):
     return res
 trainseq = theano.shared(numpy.asarray(sum(map(genseq, numpy.random.randint(low=0, high=4, size=(600,))), []), dtype=theano.config.floatX))
 trainx = trainseq
-trainy = theano.shared(numpy.concatenate([trainseq.value[1:], trainseq.value[:1]], axis=0))
+trainy = theano.shared(numpy.concatenate([trainseq.get_value()[1:], trainseq.get_value()[:1]], axis=0))
 
 testseq = [[0, 0, 0], [0, 1, 0], [1, 0, 1], [1, 0, 0], [0, 0, 1], [1, 0, 0], [0, 1, 1], [1, 1, 0], [1, 0, 1], [1, 0, 0]]
 testx = testseq
@@ -38,36 +40,47 @@ rn = RecurrentWrapper(map_in, lambda x_n: SimpleNode(x_n, 12, 6),
                       outshp=(6,), name='rl')
 out = SimpleNode(rn, 6, 3)
 
-rnet = NNet(out, y, error=errors.mse)
+cost = errors.mse(out, y)
 
-eval = theano.function([x], rnet.output)
-test = theano.function([x, y], rnet.cost)
+eval_sub = theano.function([x], out.output)
+def eval(x):
+    res = eval_sub(x)
+    # we clear the memory of the recurrent layer between input
+    # sequences because otherwise the network starts in an unknown
+    # state.
+    rn.clear()
+    return res
 
-train = theano.function([], rnet.cost, updates=trainers.get_updates(rnet.params, rnet.cost, 0.05), givens={x: trainx, y: trainy})
+test_sub = theano.function([x, y], cost.output)
+def test(x, y):
+    res = test_sub(x, y)
+    # clear here too
+    rn.clear()
+    return res
+
+train_sub = theano.function([], cost.output,
+                            updates=get_updates(cost.params,cost.output,0.05),
+                            givens={x: trainx, y: trainy})
+
+def train():
+    res = train_sub()
+    rn.clear()
+    return res
 
 # Since we didn't do any training (yet) the net has poor performance
 print "Test at start:", test(testx, testy)
 
-# clear the memory before training
-rn.clear()
-
 # Now to do some training
 for _ in range(100):
     train()
-    # we clear the memory between each training pass
-    rn.clear()
 
 print "Test after 100:", test(testx, testy)
-
-rn.clear()
 
 # Do some more training
 for _ in range(900):
     train()
-    rn.clear()
 
 print "Test after 1000:", test(testx, testy)
-rn.clear()
 
 # Let's see what we get
 print "Target:", testy

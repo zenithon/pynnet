@@ -3,6 +3,7 @@
 
 from pynnet import *
 from pynnet.nodes.base import BaseNode
+from pynnet.nodes import errors
 import theano
 
 # All nodes should inherit from BaseNode (this is not actually
@@ -20,7 +21,7 @@ class NormalizationNode(BaseNode):
         # need it.
 
         # Initialize the base class with a name and inputs.  Here we
-        # pass None to let BaseNode come up with an apporpriate unique
+        # pass None to let BaseNode come up with an appropriate unique
         # name based on the class name.  We could add a name parameter
         # to the __init__ method to let users choose their own name.
 
@@ -31,7 +32,7 @@ class NormalizationNode(BaseNode):
         # Aside from the parameters we pass to BaseNode, there are
         # special attributes which are used in the interface.  One of
         # those is local_params which should be set to the list of
-        # parameter that should be adjusted by the gradient for this
+        # parameters that should be adjusted by the gradient for this
         # node.  Since we don't have any we can ignore it as the
         # default is no parameters.
 
@@ -39,7 +40,7 @@ class NormalizationNode(BaseNode):
         # be required by the transform() method below.  They can be
         # collected from additional arguments in the constructor.
 
-    # This method has a simpel signature which takes all of our
+    # This method has a simple signature which takes all of our
     # inputs, splitted apart.  In this case we only have one input.
     # The inputs recieved here are theano expressions.
     def transform(self, input):
@@ -55,11 +56,10 @@ class NormalizationNode(BaseNode):
 # Now we can build networks using our new node (and existing ones of course)
 
 x = theano.tensor.matrix()
-y = theano.tensor.matrix()
 
-normnet = NNet(NormalizationNode(x), y, error=errors.mse)
+nn = NormalizationNode(x)
 
-eval = theano.function([x], normnet.output)
+eval = theano.function([x], nn.output)
 
 # This should print:
 # [[ 0.          0.16666667  0.33333333]
