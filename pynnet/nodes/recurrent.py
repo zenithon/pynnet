@@ -167,7 +167,7 @@ class RecurrentOutput(BaseNode):
             i = InputNode(T.unbroadcast(T.shape_padleft(T.join(0,inp,mem)),0),
                           allow_complex=True)
             g = self.inputs[0].replace({self._inp.val: i})
-            return g.output[0], i.output
+            return g.output[0], i.output[0]
         
         outs, updt = theano.scan(f, sequences=[self._inp.val.inputs[0].output],
                                  outputs_info=[self.memory, None])
