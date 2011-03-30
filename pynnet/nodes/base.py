@@ -96,6 +96,7 @@ class BaseNode(BaseObject):
             return replace_map[self]
         else:
             res = copy.copy(self)
+            res._cache = dict()
             res.inputs = tuple(i.replace(replace_map) for i in res.inputs)
             return res
 
