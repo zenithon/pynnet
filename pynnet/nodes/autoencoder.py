@@ -81,6 +81,8 @@ def autoencoder(input, n_in, n_out, noise=0.0, tied=False, nlin=tanh,
     [W, b]
     >>> dec.params
     [W, b, b2]
+    >>> dec.params[2].get_value()[0]
+    0.0
     >>> enc.nlin
     <function tanh at ...>
     >>> theano.pp(dec.W)
@@ -94,10 +96,10 @@ def autoencoder(input, n_in, n_out, noise=0.0, tied=False, nlin=tanh,
     encode = SimpleNode(input, n_in, n_out, nlin=nlin,
                          dtype=dtype, rng=rng)
     if tied:
-        b = theano.shared(value=numpy.random.random((n_in,)).astype(dtype),
+        b2 = theano.shared(value=numpy.zeros((n_in,), dtype=dtype),
                           name='b2')
-        decode = SharedNode(encode, encode.W.T, b, nlin=nlin)
-        decode.local_params.append(b)
+        decode = SharedNode(encode, encode.W.T, b2, nlin=nlin)
+        decode.local_params.append(b2)
     else:
         decode = SimpleNode(encode, n_out, n_in,
                              nlin=nlin, dtype=dtype, rng=rng)
@@ -122,6 +124,8 @@ def recurrent_autoencoder(input, n_in, n_out, noise=0.0, tied=False, nlin=tanh,
     [W, b]
     >>> dec.params
     [W, b, b2]
+    >>> dec.params[2].get_value()[0]
+    0.0
     >>> theano.pp(dec.W)
     'W.T'
     >>> theano.pp(enc.output)
@@ -141,10 +145,10 @@ def recurrent_autoencoder(input, n_in, n_out, noise=0.0, tied=False, nlin=tanh,
                          dtype=dtype, rng=rng)
     rec_enc = RecurrentOutput(encode, tag, outshp=(n_out,), dtype=dtype)
     if tied:
-        b = theano.shared(value=numpy.random.random((n_in+n_out,)).astype(dtype),
+        b2 = theano.shared(value=numpy.zeros((n_in+n_out,), dtype=dtype),
                           name='b2')
-        decode = SharedNode(rec_enc, encode.W.T, b, nlin=nlin)
-        decode.local_params.append(b)
+        decode = SharedNode(rec_enc, encode.W.T, b2, nlin=nlin)
+        decode.local_params.append(b2)
     else:
         decode = SimpleNode(rec_enc, n_out, n_in+n_out,
                              nlin=nlin, dtype=dtype, rng=rng)
