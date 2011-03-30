@@ -105,7 +105,7 @@ def autoencoder(input, n_in, n_out, noise=0.0, tied=False, nlin=tanh,
                              nlin=nlin, dtype=dtype, rng=rng)
     return encode, decode.replace({input: noiser})
 
-def recurrent_autoencoder(input, n_in, n_out, noise=0.0, tied=False, nlin=tanh,
+def recurrent_autoencoder(inp, n_in, n_out, noise=0.0, tied=False, nlin=tanh,
                           dtype=theano.config.floatX, rng=numpy.random):
     r"""
     Utility function to build a recurrent autoencoder.
@@ -139,8 +139,7 @@ def recurrent_autoencoder(input, n_in, n_out, noise=0.0, tied=False, nlin=tanh,
     >>> y = f2(xval)
     """
     tag = object()
-    rec_in = RecurrentInput(input, tag)
-    noiser = CorruptNode(rec_in, noise)
+    rec_in = RecurrentInput(inp, tag)
     encode = SimpleNode(rec_in, n_in+n_out, n_out, nlin=nlin,
                          dtype=dtype, rng=rng)
     rec_enc = RecurrentOutput(encode, tag, outshp=(n_out,), dtype=dtype)
@@ -153,6 +152,7 @@ def recurrent_autoencoder(input, n_in, n_out, noise=0.0, tied=False, nlin=tanh,
         decode = SimpleNode(rec_enc, n_out, n_in+n_out,
                              nlin=nlin, dtype=dtype, rng=rng)
     
+    noiser = CorruptNode(rec_in, noise)
     return rec_enc, decode.replace({rec_in: noiser})
 
 def conv_autoencoder(input, filter_size, num_filt, num_in=1, noise=0.0, 
