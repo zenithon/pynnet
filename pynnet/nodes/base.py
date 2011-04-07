@@ -38,12 +38,6 @@ class BaseNode(BaseObject):
         >>> b2 = test_saveload(b)
         >>> b2.name
         'BaseNode2'
-        >>> c = BaseNode([BaseNode([BaseNode([], 'b')], 'a'),
-        ...                BaseNode([], 'zombie')], 'g')
-        >>> sorted(c._dict.iterkeys())
-        ['a', 'b', 'zombie']
-        >>> all([k == v.name for k,v in c._dict.iteritems()])
-        True
         """
         self._cache = dict()
         if name is None:
@@ -63,19 +57,6 @@ class BaseNode(BaseObject):
         BaseObject.__setattr__(self, name, val)
         self._cache.clear()
 
-    def get_node(self, name):
-        r"""
-        Returns the node corresponding to `name`.
-        
-        Raises KeyError if there is no corresponding node.
-
-        Tests:
-        >>> c = BaseNode([BaseNode([], 'a'), BaseNode([], 'b')], None)
-        >>> c.get_node('b')
-        b
-        """
-        return self._dict[name]
-
     def replace(self, replace_map):
         r"""
         Replace all instances of the specified node in the graph with
@@ -87,8 +68,6 @@ class BaseNode(BaseObject):
         >>> n2_new = n2.replace({n: BaseNode([], 'n3')})
         >>> n2_new.inputs[0].name
         'n3'
-        >>> n2_new.get_node('n3')
-        n3
         >>> n2.inputs[0].name
         'n'
         """
@@ -99,16 +78,6 @@ class BaseNode(BaseObject):
             res._cache = dict()
             res.inputs = tuple(i.replace(replace_map) for i in res.inputs)
             return res
-
-    class _dict(prop):
-        def fget(self):
-            if 'dict' not in self._cache:
-                d = dict()
-                d.update((l.name, l) for l in self.inputs)
-                for l in self.inputs:
-                    d.update(l._dict)
-                self._cache['dict'] = d
-            return self._cache['dict']
 
     def walk(self, fn, type=None):
         r"""
@@ -164,10 +133,8 @@ class BaseNode(BaseObject):
         """
         raise NotImplementedError()
 
-    def __str__(self):
+    def __repr__(self):
         return self.name
-
-    __repr__ = __str__ # for now
 
 class InputNode(BaseNode):
     r"""
