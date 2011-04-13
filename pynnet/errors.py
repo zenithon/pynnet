@@ -59,8 +59,8 @@ def binary_cross_entropy(os, y):
     r"""
     Cross-entropy for 2-class output.
     
-    os -- probabilites for each class (per example)
-    y -- target probabilites (usually 1-hot for each example)
+    os -- probabilites for each example
+    y -- target probabilites
     """
     return T.mean(-T.sum(y*T.log(os) + (1-y)*T.log(1-os), axis=1))
 
