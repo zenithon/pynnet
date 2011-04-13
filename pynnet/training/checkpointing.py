@@ -77,12 +77,13 @@ else:
             if mess is not None:
                 with open('state.tmp', 'wb') as f:
                     save(t, f)
-                os.rename('state.tmp', 'state.cpkt')
+                os.rename('state.tmp', 'state.ckpt')
                 channel.save()
                 if mess == 'stop' or mess == 'finish-up':
                     t.kill()
-                    return
+                    return channel.INCOMPLETE
         channel.save()
+        return channel.COMPLETE
 
     def default_fsave(o, f):
         pickle.dump(o, f, -1)
