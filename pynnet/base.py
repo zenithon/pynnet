@@ -53,18 +53,21 @@ class PersSave(object):
         """
         self.zf = zf
         self.count = 0
+        self.seen = {}
 
     def __call__(self, obj):
         r"""
         :nodoc:
         """
         if isinstance(obj, numpy.ndarray):
-            name = 'array-'+str(self.count)
-            self.count += 1
-            def fn(fp):
-                numpy.lib.format.write_array(fp, obj)
-            zipadd(fn, self.zf, name)
-            return name
+            if id(obj) not in self.seen:
+                name = 'array-'+str(self.count)
+                self.count += 1
+                def fn(fp):
+                    numpy.lib.format.write_array(fp, obj)
+                zipadd(fn, self.zf, name)
+                self.seen[id(obj)] = name
+            return self.seen[id(obj)]
         else:
             return None
 
