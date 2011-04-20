@@ -219,8 +219,11 @@ class RecurrentWrapper(BaseNode):
             mem_init = numpy.zeros(outshp, dtype=dtype)
         self.mem_init = mem_init
         self.memory = theano.shared(self.mem_init.copy(), name='memory')
-        self.subgraph_builder = subgraph_builder
-        self.local_params = self.subgraph_builder(*self.inputs).params
+        self.subgraph = subgraph_builder(self.inputs[0])
+
+    class local_params(prop):
+        def fget(self):
+            self.subgraph.params
 
     def clear(self):
         r"""
@@ -257,7 +260,7 @@ class RecurrentWrapper(BaseNode):
         def f(inp, mem):
             i = InputNode(T.unbroadcast(T.shape_padleft(T.join(0,inp,mem)),0),
                           allow_complex=True)
-            g = self.subgraph_builder(i)
+            g = self.subgraph.replace({self.inputs[0]: i})
             return g.output[0]
         
         outs,upds = theano.scan(f,sequences=[input],outputs_info=[self.memory])
