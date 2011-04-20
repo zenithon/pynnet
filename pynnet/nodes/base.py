@@ -50,6 +50,18 @@ class BaseNode(BaseObject):
                             else input for input in inputs)
         self.local_params = []
 
+    def __copy__(self):
+        r"""
+        >>> bn = BaseNode([], 'test')
+        >>> bn2 = copy.copy(bn)
+        >>> bn._cache is bn2._cache
+        False
+        """
+        res = BaseObject.__new__(type(self))
+        res.__dict__.update(self.__dict__)
+        res._cache = dict()        
+        return res
+
     def __setattr__(self, name, val):
         r"""
         Clear the cache on attribute setting.
@@ -75,7 +87,6 @@ class BaseNode(BaseObject):
             return replace_map[self]
         else:
             res = copy.copy(self)
-            res._cache = dict()
             res.inputs = tuple(i.replace(replace_map) for i in res.inputs)
             return res
 
