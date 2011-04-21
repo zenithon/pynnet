@@ -167,9 +167,14 @@ class InputNode(BaseNode):
         >>> y = InputNode(T.fmatrix())
         >>> x.name != y.name
         True
+        >>> z = InputNode(T.fmatrix()+T.fmatrix())
+        Traceback (most recent call last):
+          ...
+        ValueError: Passing a theano expression to InputNode is usually a bug
+        Use allow_complex=True if this is really what you want.
         """
         if not allow_complex and expr.owner is not None:
-            warnings.warn("Passing a theano expression to InputNode might be a bug\nUse allow_complex=True to silence this warning.", RuntimeWarning)
+            raise ValueError("Passing a theano expression to InputNode is usually a bug\nUse allow_complex=True if this is really what you want.")
         BaseNode.__init__(self, [], name)
         self.expr = expr
 
