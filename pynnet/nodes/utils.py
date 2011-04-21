@@ -85,13 +85,14 @@ class JoinNode(BaseNode):
     r"""
     Node to join one or more nodes together.
 
-    Input nodes must have the same dimensions apart from the first one.
+    Input nodes must have the same dimensions apart from the joined one.
     """
-    def __init__(self, inputs, name=None):
+    def __init__(self, inputs, jdim=0, name=None):
         r"""
         :nodoc:
         """
         BaseNode.__init__(self, inputs, name)
+        self.jdim = jdim
 
     def transform(self, *inputs):
         r"""
@@ -101,4 +102,4 @@ class JoinNode(BaseNode):
         >>> theano.pp(j.output)
         'join(0, x, y, z)'
         """
-        return T.join(0, *inputs)
+        return T.join(self.jdim, *inputs)
