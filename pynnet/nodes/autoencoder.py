@@ -45,8 +45,6 @@ class CorruptNode(BaseNode):
         Tests:
         >>> x = T.fmatrix('x')
         >>> c = CorruptNode(x, 0.25)
-        >>> theano.pp(c.output)
-        '(x * RandomFunction{binomial}(<RandomStateType>, int32(x.shape), 1, 0.75))'
         >>> f = theano.function([x], c.output, allow_input_downcast=True)
         >>> r = f(numpy.random.random((10, 12)))
         >>> r.dtype
@@ -128,10 +126,6 @@ def recurrent_autoencoder(inp, n_in, n_out, noise=0.0, tied=False, nlin=tanh,
     0.0
     >>> theano.pp(dec.W)
     'W.T'
-    >>> theano.pp(enc.output)
-    'scan(?_steps, x, memory, 0.0, W, b)'
-    >>> theano.pp(dec.output)
-    'tanh(((scan(?_steps, x, memory, 0.0, W, b) \\dot W.T) + b2))'
     >>> f = theano.function([x], enc.output)
     >>> xval = numpy.random.random((3, 20)).astype('float32')
     >>> y = f(xval)
