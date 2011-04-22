@@ -90,11 +90,16 @@ class RecurrentNode(BaseNode):
         self.memory = theano.shared(self.mem_init.copy(), name='memory')
         self.n_seqs = len(sequences)
         self.mem_node = mem_node
-        # XXX should probably replace the input nodes with fake ones
-        self.out_subgraph = out_subgraph
+        # XXX RecurrentMemory is a bad name for a placeholder node
+        self.sequences = [RecurrentMemory() for s in sequences]
+        self.non_sequences = [RecurrentMemory() for ns in non_sequences]
+        rep = dict(zip(self.inputs[:self.n_seqs], self.sequences))
+        rep.update(zip(self.inputs[self.n_seqs:], self.non_sequences))
+        rep.update({self.mem_node: self.mem_node})
+        self.out_subgraph = out_subgraph.replace(rep)
         if mem_subgraph is None:
             mem_subgraph = out_subgraph
-        self.mem_subgraph = mem_subgraph
+        self.mem_subgraph = mem_subgraph.replace(rep)
         
     class local_params(prop):
         def fget(self):
@@ -138,12 +143,12 @@ class RecurrentNode(BaseNode):
             non_seqs = [InputNode(i) for i in inps[self.n_seqs:-1]]
             mem = InputNode(T.unbroadcast(T.shape_padleft(inps[-1]), 0),
                             allow_complex=True)
-            rep = dict(zip(self.inputs[:self.n_seqs], seqs))
-            rep.update(dict(zip(self.inputs[self.n_seqs:], non_seqs)))
+            rep = dict(zip(self.sequences, seqs))
+            rep.update(dict(zip(self.non_sequences, non_seqs)))
             rep.update({self.mem_node: mem})
             gout = self.out_subgraph.replace(rep)
             gmem = self.mem_subgraph.replace(rep)
-
+            
             return gout.output[0], gmem.output[0]
 
         outs,upds = theano.scan(f, sequences=inputs[:self.n_seqs],
@@ -320,6 +325,6 @@ class RecurrentWrapper(RecurrentNode):
         if mem_init is None:
             mem_init = numpy.zeros(outshp, dtype=dtype)
         mem = RecurrentMemory()
-        i = JoinNode([input, mem], 0)
+        i = JoinNode([input, mem], 1)
         RecurrentNode.__init__(self, [input], [], mem, subgraph_builder(i), 
                                mem_init, name=name)
