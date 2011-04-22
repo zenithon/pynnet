@@ -103,3 +103,10 @@ class JoinNode(BaseNode):
         'join(0, x, y, z)'
         """
         return T.join(self.jdim, *inputs)
+
+def _dump_graph(n, l=0):
+    if l > 0:
+        print " "*2*(l-1),
+    print n
+    for nn in n.inputs:
+        _dump_graph(nn, l+1)
