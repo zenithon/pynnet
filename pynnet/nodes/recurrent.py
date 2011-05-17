@@ -72,7 +72,7 @@ class RecurrentNode(BaseNode):
     easier.
     """
     def __init__(self, sequences, non_sequences, mem_node, out_subgraph, 
-                 mem_init, mem_subgraph=None, name=None):
+                 mem_init, mem_subgraph=None, nopad=False, name=None):
         r"""
         Tests:
         >>> x = T.fmatrix('x')
@@ -101,6 +101,7 @@ class RecurrentNode(BaseNode):
         if mem_subgraph is None:
             mem_subgraph = out_subgraph
         self.mem_subgraph = mem_subgraph.replace(rep)
+        self.nopad = nopad
         
     class local_params(prop):
         def fget(self):
@@ -136,19 +137,28 @@ class RecurrentNode(BaseNode):
         >>> (r.memory.get_value() == v[-1]).all()
         True
         """
+        if self.nopad:
+            def wrap(v):
+                return InputNode(v)
+        else:
+            def wrap(v):
+                return InputNode(T.unbroadcast(T.shape_padleft(v), 0),
+                                 allow_complex=True)
+
         def f(*inps):
-            seqs = [InputNode(T.unbroadcast(T.shape_padleft(s), 0),
-                              allow_complex=True) for s in inps[:self.n_seqs]]
+            seqs = [wrap(s) for s in inps[:self.n_seqs]]
             non_seqs = [InputNode(i) for i in inps[self.n_seqs:-1]]
-            mem = InputNode(T.unbroadcast(T.shape_padleft(inps[-1]), 0),
-                            allow_complex=True)
+            mem = wrap(inps[-1])
             rep = dict(zip(self.sequences, seqs))
             rep.update(dict(zip(self.non_sequences, non_seqs)))
             rep.update({self.mem_node: mem})
             gout = self.out_subgraph.replace(rep)
             gmem = self.mem_subgraph.replace(rep)
             
-            return gout.output[0], gmem.output[0]
+            if self.nopad:
+                return gout.output, gmem.output
+            else:
+                return gout.output[0], gmem.output[0]
 
         outs,upds = theano.scan(f, sequences=inputs[:self.n_seqs],
                                 non_sequences=inputs[self.n_seqs:],
