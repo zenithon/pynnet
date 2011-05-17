@@ -25,6 +25,7 @@ def transform(self, *inputs):
 In return it provides `output` and `params` attributes which are
 automatically computed when needed.
 """
+from .oper import *
 from .simple import *
 from .conv import *
 from .recurrent import *
