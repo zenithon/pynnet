@@ -76,19 +76,19 @@ def autoencoder(input, n_in, n_out, noise=0.0, tied=False, nlin=tanh,
     Tests:
     >>> enc, dec = autoencoder(x, 20, 16, tied=True)
     >>> enc.params
-    [W, b]
+    [W0, b]
     >>> dec.params
-    [W, b, b2]
+    [W0, b, b2]
     >>> dec.params[2].get_value()[0]
     0.0
     >>> enc.nlin
     <function tanh at ...>
-    >>> theano.pp(dec.W)
-    'W.T'
+    >>> theano.pp(dec.W[0])
+    'W0.T'
     >>> theano.pp(enc.output)
-    'tanh(((x \\dot W) + b))'
+    'tanh((b + (x \\dot W0)))'
     >>> theano.pp(dec.output)
-    'tanh(((tanh(((x \\dot W) + b)) \\dot W.T) + b2))'
+    'tanh((b2 + (tanh((b + (x \\dot W0))) \\dot W0.T)))'
     """
     noiser = CorruptNode(input, noise)
     encode = SimpleNode(input, n_in, n_out, nlin=nlin,
@@ -96,7 +96,7 @@ def autoencoder(input, n_in, n_out, noise=0.0, tied=False, nlin=tanh,
     if tied:
         b2 = theano.shared(value=numpy.zeros((n_in,), dtype=dtype),
                           name='b2')
-        decode = SharedNode(encode, encode.W.T, b2, nlin=nlin)
+        decode = SharedNode(encode, encode.W[0].T, b2, nlin=nlin)
         decode.local_params.append(b2)
     else:
         decode = SimpleNode(encode, n_out, n_in,
@@ -119,13 +119,13 @@ def recurrent_autoencoder(inp, n_in, n_out, noise=0.0, tied=False, nlin=tanh,
     Tests:
     >>> enc, dec = recurrent_autoencoder(x, 20, 16, tied=True)
     >>> enc.params
-    [W, b]
+    [W0, b]
     >>> dec.params
-    [W, b, b2]
+    [W0, b, b2]
     >>> dec.params[2].get_value()[0]
     0.0
-    >>> theano.pp(dec.W)
-    'W.T'
+    >>> theano.pp(dec.W[0])
+    'W0.T'
     >>> f = theano.function([x], enc.output)
     >>> xval = numpy.random.random((3, 20)).astype('float32')
     >>> y = f(xval)
@@ -140,7 +140,7 @@ def recurrent_autoencoder(inp, n_in, n_out, noise=0.0, tied=False, nlin=tanh,
     if tied:
         b2 = theano.shared(value=numpy.zeros((n_in+n_out,), dtype=dtype),
                           name='b2')
-        decode = SharedNode(rec_enc, encode.W.T, b2, nlin=nlin)
+        decode = SharedNode(rec_enc, encode.W[0].T, b2, nlin=nlin)
         decode.local_params.append(b2)
     else:
         decode = SimpleNode(rec_enc, n_out, n_in+n_out,

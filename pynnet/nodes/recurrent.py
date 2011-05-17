@@ -35,8 +35,6 @@ class DelayNode(BaseNode):
         >>> d = DelayNode(x, 2, numpy.random.random((2, 2)).astype('float32'))
         >>> d.params
         []
-        >>> theano.pp(d.output)
-        'join(0, delaymem, x)[:-2]'
         >>> f = theano.function([x], d.output, allow_input_downcast=True)
         >>> inp = numpy.random.random((5, 2)).astype('float32')
         >>> v = f(inp)
@@ -58,11 +56,14 @@ class RecurrentMemory(BaseNode):
         BaseNode.__init__(self, [], name)
 
     def transform(self):
+        r"""
+        If your code calls this you made an error somewhere.
+        """
         raise ValueError('RecurrentMemory is not a real node and cannot be used unreplaced')
 
 class RecurrentNode(BaseNode):
     r"""
-    Base node for all recurrent node (or almost all).
+    Base node for all recurrent nodes (or almost all).
 
     Since the handling of the subgraph(s) in a recurrent context is
     tricky this node was designed to handle the trickyness while
@@ -125,9 +126,7 @@ class RecurrentNode(BaseNode):
         >>> mem_val = numpy.zeros((2,), dtype='float32')
         >>> r = RecurrentNode([x], [], mem, out, mem_val)
         >>> r.params
-        [W, b]
-        >>> theano.pp(r.output)
-        'scan_fn{cpu}(x[:].shape[0], x[:], SetIncSubtensor{:int64:}(alloc(0.0, (x[:].shape[0] + Rebroadcast{0}(memory).shape[0]), Rebroadcast{0}(memory).shape[1]), Rebroadcast{0}(memory), ScalarFromTensor(Rebroadcast{0}(memory).shape[0])), x[:].shape[0], W, b)'
+        [W0, b]
         >>> f = theano.function([x], r.output, allow_input_downcast=True)
         >>> v = f(numpy.random.random((4, 3)))
         >>> v.dtype
@@ -190,8 +189,6 @@ class RecurrentInput(BaseNode):
         >>> rx = RecurrentInput(x, tag)
         >>> o = SimpleNode(rx, 5, 2)
         >>> ro = RecurrentOutput(o, tag, outshp=(2,))
-        >>> theano.pp(ro.output)
-        'scan_fn{cpu}(x[:].shape[0], x[:], SetIncSubtensor{:int64:}(alloc(0.0, (x[:].shape[0] + Rebroadcast{0}(memory).shape[0]), Rebroadcast{0}(memory).shape[1]), Rebroadcast{0}(memory), ScalarFromTensor(Rebroadcast{0}(memory).shape[0])), x[:].shape[0], W, b)[1:]'
         """
         BaseNode.__init__(self, [input], name)
         self.tag = tag
@@ -222,13 +219,8 @@ class RecurrentOutput(BaseNode):
         >>> rx = RecurrentInput(x, tag)
         >>> o = SimpleNode(rx, 5, 2)
         >>> ro = RecurrentOutput(o, tag, outshp=(2,))
-        >>> theano.pp(ro.output)
-        'scan_fn{cpu}(x[:].shape[0], x[:], SetIncSubtensor{:int64:}(alloc(0.0, (x[:].shape[0] + Rebroadcast{0}(memory).shape[0]), Rebroadcast{0}(memory).shape[1]), Rebroadcast{0}(memory), ScalarFromTensor(Rebroadcast{0}(memory).shape[0])), x[:].shape[0], W, b)[1:]'
-        >>> ro._cache.clear()
         >>> ro.memory.get_value()
         array([ 0.,  0.])
-        >>> theano.pp(ro.rec_in.output)
-        'scan_fn{cpu}(x[:].shape[0], x[:], SetIncSubtensor{:int64:}(alloc(0.0, (x[:].shape[0] + Rebroadcast{0}(memory).shape[0]), Rebroadcast{0}(memory).shape[1]), Rebroadcast{0}(memory), ScalarFromTensor(Rebroadcast{0}(memory).shape[0])), x[:].shape[0], W, b)'
         >>> ro.output == ro.rec_in.output
         False
         """
@@ -263,7 +255,12 @@ class RecurrentOutput(BaseNode):
             return self._cache['inpmem']
 
     class rec_in(prop):
+        r"""
+        This was an horrible idea, please do not use and subclass
+        RecurrentNode instead.
+        """
         def fget(self):
+            import warnings
             if 'rec_in' not in self._cache:
                 self._makegraph()
             return self._cache['rec_in']
@@ -319,8 +316,6 @@ class RecurrentWrapper(RecurrentNode):
         ...                      outshp=(5,), dtype='float32')
         >>> r.memory.get_value()
         array([ 0.,  0.,  0.,  0.,  0.], dtype=float32)
-        >>> theano.pp(r.output)
-        'scan_fn{cpu}(x[:].shape[0], x[:], SetIncSubtensor{:int64:}(alloc(0.0, (x[:].shape[0] + Rebroadcast{0}(memory).shape[0]), Rebroadcast{0}(memory).shape[1]), Rebroadcast{0}(memory), ScalarFromTensor(Rebroadcast{0}(memory).shape[0])), x[:].shape[0], W, b)'
         """
         if mem_init is None:
             mem_init = numpy.zeros(outshp, dtype=dtype)
