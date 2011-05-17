@@ -209,9 +209,9 @@ class make_trivial(BaseObject):
     >>> x = T.fmatrix('x')
     >>> y = T.fmatrix('y')
     >>> err = make_trivial(pynnet.errors.mse)(x, y)
-    >>> theano.pp(err.output)
-    '((sum(((x - y) ** 2)) / float32(((x - y) ** 2).shape)[0]) / float32(((x - y) ** 2).shape)[1])'
+    >>> t = err.output
     >>> err2 = test_saveload(err)
+    >>> t = err.output
     """
     def __init__(self, fn):
         self.fn = fn

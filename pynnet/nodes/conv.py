@@ -256,10 +256,10 @@ class MaxPoolNode(BaseNode):
         Tests:
         >>> x = T.fmatrix('x')
         >>> m = MaxPoolNode(x, (1,2))
-        >>> theano.pp(m.output)
-        'Reshape{2}(DownsampleFactorMax{(1, 2),True}(Reshape{4}(x, join(0, Rebroadcast{0}(Prod(x.shape[:-2])), Rebroadcast{0}([1]), x.shape[-2:]))), join(0, x.shape[:-2], DownsampleFactorMax{(1, 2),True}(Reshape{4}(x, join(0, Rebroadcast{0}(Prod(x.shape[:-2])), Rebroadcast{0}([1]), x.shape[-2:]))).shape[-2:]))'
         >>> f = theano.function([x], m.output, allow_input_downcast=True)
         >>> r = f(numpy.random.random((32, 32)))
+        >>> r.shape
+        (32, 16)
         """
         return downsample.max_pool_2d(input, self.pool_shape,
                                       ignore_border=True)

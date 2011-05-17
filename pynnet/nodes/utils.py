@@ -99,8 +99,7 @@ class JoinNode(BaseNode):
         Tests:
         >>> x, y, z = T.fmatrices('xyz')
         >>> j = JoinNode([x, y, z])
-        >>> theano.pp(j.output)
-        'join(0, x, y, z)'
+        >>> t = j.output
         """
         return T.join(self.jdim, *inputs)
 
