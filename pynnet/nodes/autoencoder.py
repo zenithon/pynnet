@@ -1,10 +1,10 @@
 from .base import *
 from .simple import SimpleNode, SharedNode
 from .conv import ConvNode, SharedConvNode
-from .recurrent import RecurrentInput, RecurrentOutput
+from .recurrent import RecurrentMemory, RecurrentNode, RecurrentInput, RecurrentOutput
 
 from pynnet.nlins import tanh
-from pynnet.errors import mse
+from .errors import mse, binary_cross_entropy
 
 from theano.tensor.shared_randomstreams import RandomStreams
 
@@ -103,6 +103,84 @@ def autoencoder(input, n_in, n_out, noise=0.0, tied=False, nlin=tanh,
                              nlin=nlin, dtype=dtype, rng=rng)
     return encode, decode.replace({input: noiser})
 
+class RecurrentAutoencoder(BaseObject):
+    r"""
+    This class is a factory for building recurrent autoencoders.  The
+    returned object is not a node but only a container for the various
+    useful parts that compose the autoencoder.
+
+    After building the object you can access the attributes
+      - encode
+      - decode_in
+      - decode_state
+      - cost_in
+      - cost_state
+    which are all nodes to use in your model.  
+
+    If you need to do something not covered by the prebuilt nodes, you
+    can also use the following attributes to use in your graph:
+     - input
+     - noisy_input
+     - mem
+    
+    (Note that using mem requires the use of a RecurrentNode).
+    
+    Examples:
+    >>> x = T.fmatrix('x')
+    >>> rae = RecurrentAutoencoder(x, 3, 2)
+    >>> rae = RecurrentAutoencoder(x, 6, 4, tied=True)
+    >>> rae = RecurrentAutoencoder(x, 7, 5, noise=0.2)
+    >>> rae = RecurrentAutoencoder(x, 4, 1, recost=binary_cross_entropy)
+
+    Tests:
+    >>> rae = RecurrentAutoencoder(x, 20, 16, tied=True, dtype='float32')
+    >>> rae.encode.params
+    [W0, W1, b]
+    >>> rae.decode_in.params
+    [W0, W1, b, b0]
+    >>> rae.decode_state.params
+    [W0, W1, b, b1]
+    >>> f = theano.function([x], rae.encode.output)
+    >>> xval = numpy.random.random((3, 20)).astype('float32')
+    >>> y = f(xval)
+    >>> f = theano.function([x], rae.decode_in.output)
+    >>> y = f(xval)
+    >>> f = theano.function([x], rae.decode_state.output)
+    >>> y = f(xval)
+    """
+    def __init__(self, inp, n_in, n_out, noise=0.0, tied=False, nlin=tanh,
+                 recost=mse, dtype=theano.config.floatX, rng=numpy.random):
+        self.input = inp
+        self.noisy_input = CorruptNode(inp, noise)
+        self.mem = RecurrentMemory(numpy.zeros((n_out,), dtype=dtype))
+        encg = SimpleNode([self.input, self.mem], [n_in, n_out], n_out, 
+                          nlin=nlin, dtype=dtype, rng=rng)
+        self.mem.subgraph = encg
+        self.encode = RecurrentNode([self.input], [], self.mem, encg)
+        newencg = encg.replace({self.input: self.noisy_input})
+        self.mem.subgraph = newencg
+        if tied:
+            b0 = theano.shared(value=numpy.zeros((n_in,), dtype=dtype),
+                               name='b0')
+            decing = SharedNode(newencg, encg.W[0].T, b0, nlin=nlin)
+            decing.local_params.append(b0)
+            b1 = theano.shared(value=numpy.zeros((n_out,), dtype=dtype),
+                               name='b1')
+            decstateg = SharedNode(newencg, encg.W[1].T, b1, nlin=nlin)
+            decstateg.local_params.append(b1)
+        else:
+            decing = SimpleNode(newencg, n_out, n_in, nlin=nlin, dtype=dtype,
+                                rng=rng)
+            decstateg = SimpleNode(newencg, n_out, n_out, nlin=nlin,
+                                   dtype=dtype, rng=rng)
+        self.decode_in = RecurrentNode([self.input], [], self.mem, decing)
+        self.decode_state = RecurrentNode([self.input], [], self.mem,
+                                          decstateg)
+        self.cost_in = RecurrentNode([self.input], [], self.mem,
+                                     recost(inp, decing))
+        self.cost_state = RecurrentNode([self.input], [], self.mem, 
+                                        recost(self.mem, decstateg))
+                                     
 def recurrent_autoencoder(inp, n_in, n_out, noise=0.0, tied=False, nlin=tanh,
                           dtype=theano.config.floatX, rng=numpy.random):
     r"""
