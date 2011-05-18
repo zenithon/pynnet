@@ -51,7 +51,7 @@ class DelayNode(BaseNode):
         self.memory.default_update = j[-self.delay:]
         return j[:-self.delay]
 
-class RecurrentMemory(BaseNode):
+class PlaceholderNode(BaseNode):
     def __init__(self, name=None):
         BaseNode.__init__(self, [], name)
 
@@ -59,7 +59,13 @@ class RecurrentMemory(BaseNode):
         r"""
         If your code calls this you made an error somewhere.
         """
-        raise ValueError('RecurrentMemory is not a real node and cannot be used unreplaced')
+        raise RuntimeError('PlaceholderNode is not a real node and cannot be used unreplaced')
+
+class RecurrentMemory(PlaceholderNode):
+    def __init__(self, val=None, name=None):
+        PlaceholderNode.__init__(self, name)
+        self.init_val = val
+        self.subgraph = None
 
 class RecurrentNode(BaseNode):
     r"""
@@ -72,7 +78,7 @@ class RecurrentNode(BaseNode):
     easier.
     """
     def __init__(self, sequences, non_sequences, mem_node, out_subgraph, 
-                 mem_init, mem_subgraph=None, nopad=False, name=None):
+                 mem_init=None, mem_subgraph=None, nopad=False, name=None):
         r"""
         Tests:
         >>> x = T.fmatrix('x')
@@ -85,31 +91,29 @@ class RecurrentNode(BaseNode):
         array([ 0.,  0.,  0.,  0.,  0.], dtype=float32)
         """
         BaseNode.__init__(self, sequences+non_sequences, name)
-        if mem_init is None:
-            mem_init = numpy.zeros(outshp, dtype=dtype)
+        self.mem_node = mem_node
         self.mem_init = mem_init
+        if self.mem_init is None:
+            if self.mem_node.init_val is None:
+                raise ValueError('Must provide an initial value for the memory')
+            self.mem_init = self.mem_node.init_val
         self.memory = theano.shared(self.mem_init.copy(), name='memory')
         self.n_seqs = len(sequences)
-        self.mem_node = mem_node
-        # XXX RecurrentMemory is a bad name for a placeholder node
-        self.sequences = [RecurrentMemory() for s in sequences]
-        self.non_sequences = [RecurrentMemory() for ns in non_sequences]
+        self.sequences = [PlaceholderNode() for s in sequences]
+        self.non_sequences = [PlaceholderNode() for ns in non_sequences]
         rep = dict(zip(self.inputs[:self.n_seqs], self.sequences))
         rep.update(zip(self.inputs[self.n_seqs:], self.non_sequences))
         rep.update({self.mem_node: self.mem_node})
         self.out_subgraph = out_subgraph.replace(rep)
         if mem_subgraph is None:
-            mem_subgraph = out_subgraph
+            if self.mem_node.subgraph is not None:
+                mem_subgraph = self.mem_node.subgraph
+            else:
+                mem_subgraph = out_subgraph
         self.mem_subgraph = mem_subgraph.replace(rep)
         self.nopad = nopad
-        
-    class local_params(prop):
-        def fget(self):
-            # redundents params are taken care of in BaseNode.params
-            return self.out_subgraph.params + self.mem_subgraph.params
-
-        def fset(self, val):
-            pass
+        self.local_params = list(set(self.out_subgraph.params +
+                                     self.mem_subgraph.params))
 
     def clear(self):
         r"""
