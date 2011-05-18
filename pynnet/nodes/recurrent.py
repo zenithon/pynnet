@@ -66,6 +66,13 @@ class RecurrentMemory(PlaceholderNode):
         PlaceholderNode.__init__(self, name)
         self.init_val = val
         self.subgraph = None
+        self._id = object()
+
+    def __hash__(self):
+        return hash(self._id)
+
+    def __eq__(self, other):
+        return type(self) == type(other) and self._id == other._id
 
 class RecurrentNode(BaseNode):
     r"""
@@ -103,7 +110,6 @@ class RecurrentNode(BaseNode):
         self.non_sequences = [PlaceholderNode() for ns in non_sequences]
         rep = dict(zip(self.inputs[:self.n_seqs], self.sequences))
         rep.update(zip(self.inputs[self.n_seqs:], self.non_sequences))
-        rep.update({self.mem_node: self.mem_node})
         self.out_subgraph = out_subgraph.replace(rep)
         if mem_subgraph is None:
             if self.mem_node.subgraph is not None:
