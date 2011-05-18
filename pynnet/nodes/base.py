@@ -213,8 +213,6 @@ class make_trivial(BaseObject):
     >>> t = err.output
     >>> err2 = test_saveload(err)
     >>> t = err.output
-    >>> err
-    mse1
     """
     def __init__(self, fn):
         self.fn = fn
