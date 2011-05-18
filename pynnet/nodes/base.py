@@ -208,10 +208,13 @@ class make_trivial(BaseObject):
     Tests:
     >>> x = T.fmatrix('x')
     >>> y = T.fmatrix('y')
-    >>> err = make_trivial(pynnet.errors.mse)(x, y)
+    >>> from pynnet.errors import mse
+    >>> err = make_trivial(mse)(x, y)
     >>> t = err.output
     >>> err2 = test_saveload(err)
     >>> t = err.output
+    >>> err
+    mse1
     """
     def __init__(self, fn):
         self.fn = fn
