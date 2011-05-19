@@ -2,6 +2,7 @@ from .base import *
 from .simple import SimpleNode, SharedNode
 from .conv import ConvNode, SharedConvNode
 from .recurrent import RecurrentMemory, RecurrentNode, RecurrentInput, RecurrentOutput
+from .oper import MeanNode
 
 from pynnet.nlins import tanh
 from .errors import mse, binary_cross_entropy
@@ -146,6 +147,10 @@ class RecurrentAutoencoder(BaseObject):
         >>> y = f(xval)
         >>> f = theano.function([x], rae.decode_state.output)
         >>> y = f(xval)
+        >>> f = theano.function([x], rae.cost_in.output)
+        >>> y = f(xval)
+        >>> f = theano.function([x], rae.cost_state.output)
+        >>> y = f(xval)
         """
         self.noisy_input = CorruptNode(inp, noise)
         self.input = self.noisy_input.inputs[0]
@@ -154,8 +159,9 @@ class RecurrentAutoencoder(BaseObject):
                           nlin=nlin, dtype=dtype, rng=rng)
         self.mem.subgraph = encg
         self.encode = RecurrentNode([self.input], [], self.mem, encg)
-        newencg = encg.replace({self.input: self.noisy_input})
-        self.mem.subgraph = newencg
+        self.noisy_mem = RecurrentMemory(numpy.zeros((n_out,), dtype=dtype))
+        newencg = encg.replace({self.input: self.noisy_input, self.mem: self.noisy_mem})
+        self.noisy_mem.subgraph = newencg
         if tied:
             b0 = theano.shared(value=numpy.zeros((n_in,), dtype=dtype),
                                name='b0')
@@ -170,13 +176,27 @@ class RecurrentAutoencoder(BaseObject):
                                 rng=rng)
             decstateg = SimpleNode(newencg, n_out, n_out, nlin=nlin,
                                    dtype=dtype, rng=rng)
-        self.decode_in = RecurrentNode([self.input], [], self.mem, decing)
-        self.decode_state = RecurrentNode([self.input], [], self.mem,
+        self.decode_in = RecurrentNode([self.input], [], self.noisy_mem, 
+                                       decing)
+        self.decode_state = RecurrentNode([self.input], [], self.noisy_mem,
                                           decstateg)
-        self.cost_in = RecurrentNode([self.input], [], self.mem,
-                                     recost(inp, decing))
-        self.cost_state = RecurrentNode([self.input], [], self.mem, 
-                                        recost(self.mem, decstateg))
+        self.cost_in_rec = RecurrentNode([self.input], [], self.noisy_mem,
+                                         recost(inp, decing), nopad=True)
+        self.cost_in = MeanNode(self.cost_in_rec)
+        self.cost_state_rec = RecurrentNode([self.input], [], self.noisy_mem,
+                                            recost(self.noisy_mem, decstateg),
+                                            nopad=True)
+        self.cost_state = MeanNode(self.cost_state_rec)
+    
+    def clear(self):
+        r"""
+        Clears the memory from all associated nodes.
+        """
+        self.encode.clear()
+        self.decode_in.clear()
+        self.decode.state.clear()
+        self.cost_in_rec.clear()
+        self.cost_state_rec.clear()
 
 def recurrent_autoencoder(inp, n_in, n_out, noise=0.0, tied=False, nlin=tanh,
                           dtype=theano.config.floatX, rng=numpy.random):
