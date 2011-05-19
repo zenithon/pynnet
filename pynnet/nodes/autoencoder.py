@@ -8,22 +8,17 @@ from .errors import mse, binary_cross_entropy
 
 from theano.tensor.shared_randomstreams import RandomStreams
 
-__all__ = ['CorruptNode', 'autoencoder', 'recurrent_autoencoder', 
-           'conv_autoencoder']
+__all__ = ['CorruptNode', 'autoencoder', 'RecurrentAutoencoder', 
+           'recurrent_autoencoder', 'conv_autoencoder']
 
 class CorruptNode(BaseNode):
     r"""
     Node that corrupts its input.
 
     Examples:
-    >>> x = T.fmatrix('x')
+    >>> x = T.matrix('x')
     >>> c = CorruptNode(x, 0.25)
     >>> c = CorruptNode(x, 0.0)
-
-    Attributes: 
-    `noise` -- (float, read-write) The noise level as a probability of
-               destroying any given input.  Must be kept between 0 and
-               1.
     """
     def __init__(self, input, noise, theano_rng=RandomStreams(), name=None):
         r"""
@@ -126,32 +121,34 @@ class RecurrentAutoencoder(BaseObject):
     (Note that using mem requires the use of a RecurrentNode).
     
     Examples:
-    >>> x = T.fmatrix('x')
+    >>> x = T.matrix('x')
     >>> rae = RecurrentAutoencoder(x, 3, 2)
     >>> rae = RecurrentAutoencoder(x, 6, 4, tied=True)
     >>> rae = RecurrentAutoencoder(x, 7, 5, noise=0.2)
     >>> rae = RecurrentAutoencoder(x, 4, 1, recost=binary_cross_entropy)
-
-    Tests:
-    >>> rae = RecurrentAutoencoder(x, 20, 16, tied=True, dtype='float32')
-    >>> rae.encode.params
-    [W0, W1, b]
-    >>> rae.decode_in.params
-    [W0, W1, b, b0]
-    >>> rae.decode_state.params
-    [W0, W1, b, b1]
-    >>> f = theano.function([x], rae.encode.output)
-    >>> xval = numpy.random.random((3, 20)).astype('float32')
-    >>> y = f(xval)
-    >>> f = theano.function([x], rae.decode_in.output)
-    >>> y = f(xval)
-    >>> f = theano.function([x], rae.decode_state.output)
-    >>> y = f(xval)
     """
     def __init__(self, inp, n_in, n_out, noise=0.0, tied=False, nlin=tanh,
                  recost=mse, dtype=theano.config.floatX, rng=numpy.random):
-        self.input = inp
+        r"""
+        Tests:
+        >>> x = T.fmatrix('x')
+        >>> rae = RecurrentAutoencoder(x, 20, 16, tied=True, dtype='float32')
+        >>> rae.encode.params
+        [W0, W1, b]
+        >>> rae.decode_in.params
+        [W0, W1, b, b0]
+        >>> rae.decode_state.params
+        [W0, W1, b, b1]
+        >>> f = theano.function([x], rae.encode.output)
+        >>> xval = numpy.random.random((3, 20)).astype('float32')
+        >>> y = f(xval)
+        >>> f = theano.function([x], rae.decode_in.output)
+        >>> y = f(xval)
+        >>> f = theano.function([x], rae.decode_state.output)
+        >>> y = f(xval)
+        """
         self.noisy_input = CorruptNode(inp, noise)
+        self.input = self.noisy_input.inputs[0]
         self.mem = RecurrentMemory(numpy.zeros((n_out,), dtype=dtype))
         encg = SimpleNode([self.input, self.mem], [n_in, n_out], n_out, 
                           nlin=nlin, dtype=dtype, rng=rng)
@@ -180,7 +177,7 @@ class RecurrentAutoencoder(BaseObject):
                                      recost(inp, decing))
         self.cost_state = RecurrentNode([self.input], [], self.mem, 
                                         recost(self.mem, decstateg))
-                                     
+
 def recurrent_autoencoder(inp, n_in, n_out, noise=0.0, tied=False, nlin=tanh,
                           dtype=theano.config.floatX, rng=numpy.random):
     r"""
