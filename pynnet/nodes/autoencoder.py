@@ -192,11 +192,8 @@ class RecurrentAutoencoder(BaseObject):
         r"""
         Clears the memory from all associated nodes.
         """
-        self.encode.clear()
-        self.decode_in.clear()
-        self.decode.state.clear()
-        self.cost_in_rec.clear()
-        self.cost_state_rec.clear()
+        self.mem.clear()
+        self.noisy_mem.clear()
 
 def recurrent_autoencoder(inp, n_in, n_out, noise=0.0, tied=False, nlin=tanh,
                           dtype=theano.config.floatX, rng=numpy.random):

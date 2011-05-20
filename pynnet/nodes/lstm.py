@@ -34,7 +34,7 @@ class LSTMNode(RecurrentNode):
         >>> r.shape
         (8, 2)
         """
-        mem = RecurrentMemory()
+        mem = RecurrentMemory(numpy.zeros((n_cells,), dtype=dtype))
         map_in = SimpleNode(input, in_size, n_cells, nlin=mapnlin,
                             dtype=dtype, rng=rng)
         gate_in = _broad0(SimpleNode([input, mem], [in_size, n_cells], 1,
@@ -47,7 +47,7 @@ class LSTMNode(RecurrentNode):
         gocec = MulNode(mem, gate_forget)
         gcec = AddNode(gin, gocec)
         gout = MulNode(gcec, gate_out)
-        cec_init = numpy.zeros((n_cells,), dtype=dtype)
-
-        RecurrentNode.__init__(self, [input], [], mem, gout, cec_init, gcec, 
+        mem.subgraph = gcec
+        
+        RecurrentNode.__init__(self, [input], [], mem, gout, 
                                name=name, nopad=True)

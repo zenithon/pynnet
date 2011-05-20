@@ -3,6 +3,8 @@ from .simple import SimpleNode
 from .utils import JoinNode
 from pynnet.nlins import *
 
+import warnings
+
 from theano.tensor.shared_randomstreams import RandomStreams
 
 __all__ = ['DelayNode', 'RecurrentInput', 'RecurrentOutput', 'RecurrentWrapper']
@@ -62,17 +64,27 @@ class PlaceholderNode(BaseNode):
         raise RuntimeError('PlaceholderNode is not a real node and cannot be used unreplaced')
 
 class RecurrentMemory(PlaceholderNode):
-    def __init__(self, val=None, name=None):
+    def __init__(self, val, name=None):
         PlaceholderNode.__init__(self, name)
         self.init_val = val
         self.subgraph = None
-        self._id = object()
+        self.shared = theano.shared(self.init_val.copy())
 
-    def __hash__(self):
-        return hash(self._id)
+    def clear(self):
+        r"""
+        Clears the shared memory.
+        """
+        self.shared.set_value(self.init_val.copy())
 
-    def __eq__(self, other):
-        return type(self) == type(other) and self._id == other._id
+    def replace(self, eq):
+        r"""
+        See the documentation for BaseNode.replace
+        """
+        if self in eq:
+            return eq[self]
+        else:
+            # Don't copy.
+            return self
 
 class RecurrentNode(BaseNode):
     r"""
@@ -85,37 +97,31 @@ class RecurrentNode(BaseNode):
     easier.
     """
     def __init__(self, sequences, non_sequences, mem_node, out_subgraph, 
-                 mem_init=None, mem_subgraph=None, nopad=False, name=None):
+                 nopad=False, name=None):
         r"""
         Tests:
         >>> x = T.fmatrix('x')
-        >>> mem = RecurrentMemory()
+        >>> mem = RecurrentMemory(numpy.zeros((5,), dtype='float32'))
         >>> i = JoinNode([x, mem], 1)
         >>> out = SimpleNode(i, 10, 5, dtype='float32')
-        >>> mem_val = numpy.zeros((5,), dtype='float32')
-        >>> r = RecurrentNode([x], [], mem, out, mem_val)
-        >>> r.memory.get_value()
+        >>> mem.subgraph = out
+        >>> r = RecurrentNode([x], [], mem, out)
+        >>> r.memory.shared.get_value()
         array([ 0.,  0.,  0.,  0.,  0.], dtype=float32)
         """
         BaseNode.__init__(self, sequences+non_sequences, name)
-        self.mem_node = mem_node
-        self.mem_init = mem_init
-        if self.mem_init is None:
-            if self.mem_node.init_val is None:
-                raise ValueError('Must provide an initial value for the memory')
-            self.mem_init = self.mem_node.init_val
-        self.memory = theano.shared(self.mem_init.copy(), name='memory')
+        self.memory = mem_node
         self.n_seqs = len(sequences)
         self.sequences = [PlaceholderNode() for s in sequences]
         self.non_sequences = [PlaceholderNode() for ns in non_sequences]
         rep = dict(zip(self.inputs[:self.n_seqs], self.sequences))
         rep.update(zip(self.inputs[self.n_seqs:], self.non_sequences))
         self.out_subgraph = out_subgraph.replace(rep)
-        if mem_subgraph is None:
-            if self.mem_node.subgraph is not None:
-                mem_subgraph = self.mem_node.subgraph
-            else:
-                mem_subgraph = out_subgraph
+        if self.memory.subgraph is None:
+            warnings.warn("RecurrentMemory should always have a subgraph, using output for now")
+            mem_subgraph = out_subgraph
+        else:
+            mem_subgraph = self.memory.subgraph
         self.mem_subgraph = mem_subgraph.replace(rep)
         self.nopad = nopad
         self.local_params = list(set(self.out_subgraph.params +
@@ -125,17 +131,17 @@ class RecurrentNode(BaseNode):
         r"""
         Resets the memory to the initial value.
         """
-        self.memory.set_value(self.mem_init.copy())
+        self.memory.clear()
 
     def transform(self, *inputs):
         r"""
         Tests:
         >>> x = T.fmatrix('x')
-        >>> mem = RecurrentMemory()
+        >>> mem = RecurrentMemory(numpy.zeros((2,), dtype='float32'))
         >>> i = JoinNode([x, mem], 1)
         >>> out = SimpleNode(i, 5, 2, dtype='float32')
-        >>> mem_val = numpy.zeros((2,), dtype='float32')
-        >>> r = RecurrentNode([x], [], mem, out, mem_val)
+        >>> mem.subgraph = out
+        >>> r = RecurrentNode([x], [], mem, out)
         >>> r.params
         [W0, b]
         >>> f = theano.function([x], r.output, allow_input_downcast=True)
@@ -144,7 +150,7 @@ class RecurrentNode(BaseNode):
         dtype('float32')
         >>> v.shape
         (4, 2)
-        >>> (r.memory.get_value() == v[-1]).all()
+        >>> (r.memory.shared.get_value() == v[-1]).all()
         True
         """
         if self.nopad:
@@ -161,7 +167,7 @@ class RecurrentNode(BaseNode):
             mem = wrap(inps[-1])
             rep = dict(zip(self.sequences, seqs))
             rep.update(dict(zip(self.non_sequences, non_seqs)))
-            rep.update({self.mem_node: mem})
+            rep.update({self.memory: mem})
             gout = self.out_subgraph.replace(rep)
             gmem = self.mem_subgraph.replace(rep)
             
@@ -172,11 +178,11 @@ class RecurrentNode(BaseNode):
 
         outs,upds = theano.scan(f, sequences=inputs[:self.n_seqs],
                                 non_sequences=inputs[self.n_seqs:],
-                                outputs_info=[None, self.memory])
+                                outputs_info=[None, self.memory.shared])
         
         for s, u in upds.iteritems():
             s.default_update = u
-        self.memory.default_update = outs[1][-1]
+        self.memory.shared.default_update = outs[1][-1]
         return outs[0]
 
 class RecurrentInput(BaseNode):
@@ -334,12 +340,13 @@ class RecurrentWrapper(RecurrentNode):
         >>> x = T.fmatrix('x')
         >>> r = RecurrentWrapper(x, lambda x_n: SimpleNode(x_n, 10, 5, dtype='float32'),
         ...                      outshp=(5,), dtype='float32')
-        >>> r.memory.get_value()
+        >>> r.memory.shared.get_value()
         array([ 0.,  0.,  0.,  0.,  0.], dtype=float32)
         """
         if mem_init is None:
             mem_init = numpy.zeros(outshp, dtype=dtype)
-        mem = RecurrentMemory()
+        mem = RecurrentMemory(mem_init)
         i = JoinNode([input, mem], 1)
-        RecurrentNode.__init__(self, [input], [], mem, subgraph_builder(i), 
-                               mem_init, name=name)
+        mem.subgraph = subgraph_builder(i)
+        RecurrentNode.__init__(self, [input], [], mem, mem.subgraph,
+                               name=name)
