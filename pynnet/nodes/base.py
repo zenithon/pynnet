@@ -69,6 +69,15 @@ class BaseNode(BaseObject):
         BaseObject.__setattr__(self, name, val)
         self._cache.clear()
 
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        del state['_cache']
+        return state
+
+    def __setstate__(self, state):
+        self._cache = dict()
+        self.__dict__.update(state)
+
     def replace(self, replace_map):
         r"""
         Replace all instances of the specified node in the graph with
