@@ -3,7 +3,7 @@ from .simple import SimpleNode
 from .utils import JoinNode
 from pynnet.nlins import *
 
-import warnings
+import warnings, copy
 
 from theano.tensor.shared_randomstreams import RandomStreams
 
@@ -86,6 +86,27 @@ class RecurrentMemory(PlaceholderNode):
             # Don't copy.
             return self
 
+    def __getstate__(self):
+        r"""
+        >>> mem = RecurrentMemory(numpy.zeros((2,)))
+        >>> mem2 = test_saveload(mem)
+        >>> hasattr(mem.shared, 'default_update')
+        False
+        >>> hasattr(mem2.shared, 'default_update')
+        False
+        >>> mem.shared.default_update = mem.shared + 1
+        >>> mem2 = test_saveload(mem)
+        >>> hasattr(mem.shared, 'default_update')
+        True
+        >>> hasattr(mem2.shared, 'default_update')
+        False
+        """
+        state = PlaceholderNode.__getstate__(self)
+        if hasattr(self.shared, 'default_update'):
+            state['shared'] = copy.copy(self.shared)
+            del state['shared'].default_update
+        return state
+
 class RecurrentNode(BaseNode):
     r"""
     Base node for all recurrent nodes (or almost all).
@@ -102,12 +123,11 @@ class RecurrentNode(BaseNode):
         Tests:
         >>> x = T.fmatrix('x')
         >>> mem = RecurrentMemory(numpy.zeros((5,), dtype='float32'))
-        >>> i = JoinNode([x, mem], 1)
-        >>> out = SimpleNode(i, 10, 5, dtype='float32')
+        >>> out = SimpleNode([x, mem], [5, 5], 5, dtype='float32')
         >>> mem.subgraph = out
         >>> r = RecurrentNode([x], [], mem, out)
-        >>> r.memory.shared.get_value()
-        array([ 0.,  0.,  0.,  0.,  0.], dtype=float32)
+        >>> r.n_seqs
+        1
         """
         BaseNode.__init__(self, sequences+non_sequences, name)
         self.memory = mem_node
