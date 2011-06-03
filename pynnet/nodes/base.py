@@ -75,6 +75,18 @@ class BaseNode(BaseObject):
         return state
 
     def __setstate__(self, state):
+        r"""
+        >>> b = BaseNode([], None)
+        >>> b.transform = lambda : 'hi'
+        >>> b.output
+        'hi'
+        >>> 'output' in b._cache
+        True
+        >>> del b.transform
+        >>> b2 = test_saveload(b)
+        >>> 'output' in b2._cache
+        False
+        """
         self._cache = dict()
         self.__dict__.update(state)
 
