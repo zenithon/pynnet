@@ -60,7 +60,8 @@ def binary_cross_entropy(os, y):
     os -- probabilites for each example
     y -- target probabilites
     """
-    return T.mean(-T.sum(y*T.log(os) + (1-y)*T.log(1-os), axis=1))
+    v = y*T.log(os) + (1-y)*T.log(1-os)
+    return -T.sum(v)/v.shape[0]
 
 def multi_cross_entropy(os, y):
     r"""
