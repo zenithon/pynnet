@@ -181,10 +181,10 @@ class RecurrentAutoencoder(BaseObject):
         self.decode_state = RecurrentNode([self.input], [], self.noisy_mem,
                                           decstateg)
         self.cost_in_rec = RecurrentNode([self.input], [], self.noisy_mem,
-                                         recost(inp, decing), nopad=True)
+                                         recost(decing, inp), nopad=True)
         self.cost_in = MeanNode(self.cost_in_rec)
         self.cost_state_rec = RecurrentNode([self.input], [], self.noisy_mem,
-                                            recost(self.noisy_mem, decstateg),
+                                            recost(decstateg, self.noisy_mem),
                                             nopad=True)
         self.cost_state = MeanNode(self.cost_state_rec)
     
