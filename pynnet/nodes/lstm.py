@@ -23,7 +23,7 @@ class LSTMNode(RecurrentNode):
     >>> x = T.fmatrix('x')
     >>> l = LSTMNode(x, 20, 5, dtype='float32')
     """
-    def __init__(self, input, in_size, n_cells, mapnlin=tanh, 
+    def __init__(self, input, in_size, n_cells, mapnlin=tanh, out_bias=0.0,
                  rng=numpy.random, name=None, dtype=theano.config.floatX):
         r"""
         Tests:
@@ -42,7 +42,8 @@ class LSTMNode(RecurrentNode):
         gate_forget = _broad0(SimpleNode([input, mem], [in_size, n_cells], 1,
                                          nlin=sigmoid, dtype=dtype, rng=rng))
         gate_out = _broad0(SimpleNode([input, mem], [in_size, n_cells], 1,
-                                      nlin=sigmoid, dtype=dtype, rng=rng))
+                                      nlin=sigmoid, dtype=dtype, rng=rng,
+                                      b_init=out_bias))
         gin = MulNode(map_in, gate_in)
         gocec = MulNode(mem, gate_forget)
         gcec = AddNode(gin, gocec)
