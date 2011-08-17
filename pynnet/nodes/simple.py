@@ -98,7 +98,7 @@ class SimpleNode(SharedNode):
     >>> h = SimpleNode([x, x2], [20, 10], 20)
     """
     def __init__(self, input, n_in, n_out, nlin=tanh, rng=numpy.random,
-                 dtype=theano.config.floatX, name=None):
+                 b_init=None, dtype=theano.config.floatX, name=None):
         r"""
         Tests: 
         >>> x = T.fmatrix('x')
@@ -116,6 +116,9 @@ class SimpleNode(SharedNode):
         >>> h = SimpleNode([x, x2], [20, 10], 20)
         >>> h.params
         [W0, W1, b]
+        >>> h = SimpleNode(x, 20, 10, b_init=0.2)
+        >>> h.b.get_value()
+        array([ 0.2,  0.2,  0.2,  0.2,  0.2,  0.2,  0.2,  0.2,  0.2,  0.2])
         """
         if not isinstance(input, (list, tuple)):
             input = [input]
@@ -124,7 +127,14 @@ class SimpleNode(SharedNode):
             assert len(input) == len(n_in)
 
         W = [self.make_W(i, n, n_out, rng, dtype) for i, n in enumerate(n_in)]
-        b_values = numpy.zeros((n_out,), dtype=dtype)
+        if b_init is None:
+            b_values = numpy.zeros((n_out,), dtype=dtype)
+        elif isinstance(b_init, numpy.ndarray):
+            b_values = b_init.copy().astype(dtype)
+            assert b_values.shape == (n_out,)
+        else:
+            b_values = numpy.empty((n_out,), dtype=dtype)
+            b_values.fill(b_init)
         b = theano.shared(value=b_values, name='b')
         SharedNode.__init__(self, input, W, b, nlin=nlin, name=name)
         self.local_params = self.W + [self.b]
