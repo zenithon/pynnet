@@ -27,10 +27,15 @@ def get_updates(params, err, alpha):
     >>> f = theano.function([xs, ys], err, updates=up)
     >>> f(x, y) > f(x, y)
     True
-    >>> up = get_updates([W, b], err, 0.05)
+    >>> up = get_updates([W, b], err, 0.03)
+    >>> W.dtype == up[W].dtype
+    True
+    >>> v = numpy.array(0.1, dtype='float32')
+    >>> up = get_updates([W, b], err, v)
     >>> W.dtype == up[W].dtype
     True
     """
-    a = theano.tensor.constant(alpha, dtype='float32')
+    a = theano.tensor.cast(theano.tensor.as_tensor_variable(alpha),
+                           dtype='float32')
     gparams = theano.tensor.grad(err, params)
     return dict((p, p - gp*a) for p, gp in izip(params, gparams))
